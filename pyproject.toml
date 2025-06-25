@@ -27,9 +27,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/fawadss1/askpablos-scrapy-api"
-Documentation = "https://github.com/fawadss1/askpablos-scrapy-api/tree/main/docs"
-"Bug Tracker" = "https://github.com/fawadss1/askpablos-scrapy-api/issues"
+Homepage = "https://github.com/fawadss1/askpablos_scrapy_api"
+Documentation = "https://github.com/fawadss1/askpablos_scrapy_api/tree/master/docs"
+"Bug Tracker" = "https://github.com/fawadss1/askpablos_scrapy_api/issues"
 
 [build-system]
 requires = ["setuptools>=61.0"]
