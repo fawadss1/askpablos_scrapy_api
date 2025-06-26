@@ -59,7 +59,7 @@ class AskPablosAPIDownloaderMiddleware:
         self.api_key = api_key
         self.secret_key = secret_key
         setup_logging()
-        logger.info(f"AskPablos Scrapy API initialized (version: {__version__})")
+        logger.debug(f"AskPablos Scrapy API initialized (version: {__version__})")
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -96,7 +96,6 @@ class AskPablosAPIDownloaderMiddleware:
 
         browser = proxy_cfg.get("browser", False)
         rotate_proxy = proxy_cfg.get("rotate_proxy", False)
-        country = proxy_cfg.get("country")
 
         payload = {
             "url": request.url,
@@ -104,9 +103,6 @@ class AskPablosAPIDownloaderMiddleware:
             "browser": browser,
             "rotateProxy": rotate_proxy
         }
-
-        if country:
-            payload["country"] = country
 
         try:
             # Sign the request using auth module
@@ -137,25 +133,21 @@ class AskPablosAPIDownloaderMiddleware:
                 raise InvalidResponseError("Invalid JSON response from API")
 
             # Validate response content
-            html_body = proxy_response.get("body")
+            html_body = proxy_response.get("data")
             if not html_body:
                 raise ProxyError(f"No 'body' in response for {request.url}")
 
             # Handle browser rendering errors
-            if browser and proxy_response.get("renderingError"):
-                error_msg = proxy_response.get("renderingError", "Unknown browser rendering error")
+            if browser and proxy_response.get("error"):
+                error_msg = proxy_response.get("error", "Unknown browser rendering error")
                 raise BrowserRenderingError(error_msg, response=proxy_response)
 
-            # Return the successful response
-            status = proxy_response.get("status", 200)
-            final_url = proxy_response.get("finalUrl", request.url)
-
             return HtmlResponse(
-                url=final_url,
+                url=request.url,
                 body=html_body.encode() if isinstance(html_body, str) else html_body,
                 encoding="utf-8",
                 request=request,
-                status=status
+                status=response.status_code
             )
 
         except requests.exceptions.Timeout:
