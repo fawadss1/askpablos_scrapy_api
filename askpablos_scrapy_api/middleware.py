@@ -13,7 +13,6 @@ from .exceptions import (
     TimeoutError, BrowserRenderingError,
     ConfigurationError, handle_api_error
 )
-from .utils import setup_logging
 
 # Configure logger
 logger = logging.getLogger('askpablos_scrapy_api')
@@ -58,7 +57,6 @@ class AskPablosAPIDownloaderMiddleware:
     def __init__(self, api_key, secret_key):
         self.api_key = api_key
         self.secret_key = secret_key
-        setup_logging()
         logger.debug(f"AskPablos Scrapy API initialized (version: {__version__})")
 
     @classmethod
