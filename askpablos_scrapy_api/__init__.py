@@ -22,13 +22,9 @@ from .version import __version__
 # Expose key components at package level for easy imports
 from .exceptions import (
     AskPablosAPIError,
-    AuthenticationError,
     RateLimitError,
-    ProxyError,
-    InvalidResponseError,
-    TimeoutError,
     BrowserRenderingError,
-    ConfigurationError
+    handle_api_error,
 )
 
 # Define package exports explicitly
@@ -36,11 +32,7 @@ __all__ = [
     'AskPablosAPIDownloaderMiddleware',
     '__version__',
     'AskPablosAPIError',
-    'AuthenticationError',
     'RateLimitError',
-    'ProxyError',
-    'InvalidResponseError',
-    'TimeoutError',
     'BrowserRenderingError',
-    'ConfigurationError'
+    'handle_api_error'
 ]

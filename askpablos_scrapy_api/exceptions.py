@@ -18,11 +18,14 @@ class AskPablosAPIError(Exception):
 
         # Extract error code from response if present
         if response and isinstance(response, dict):
-            self.error_code = response.get('error', {}).get('code')
-
-            # If the API provides a more detailed error message, use it
-            if response.get('error', {}).get('message'):
-                self.message = response['error']['message']
+            if 'error' in response:
+                if isinstance(response['error'], dict):
+                    self.error_code = response['error'].get('code')
+                    # If the API provides a more detailed error message, use it
+                    if response['error'].get('message'):
+                        self.message = response['error']['message']
+                elif isinstance(response['error'], str):
+                    self.message = response['error']
 
         super().__init__(self.message)
 
@@ -36,26 +39,9 @@ class AskPablosAPIError(Exception):
             return self.message
 
 
-class AuthenticationError(AskPablosAPIError):
-    """
-    Raised when authentication with the AskPablos API fails.
-
-    This typically happens when:
-    - The API key is invalid or expired
-    - The signature is incorrect or malformed
-    - The credentials have been revoked
-    """
-    pass
-
-
 class RateLimitError(AskPablosAPIError):
     """
     Raised when the API rate limit is exceeded.
-
-    This typically happens when:
-    - Too many requests are made in a short period
-    - The account's quota has been reached
-    - The API usage exceeds the current plan limits
     """
 
     def __init__(self, message: str, status_code: Optional[int] = None, response: Optional[Dict[str, Any]] = None):
@@ -80,67 +66,14 @@ class RateLimitError(AskPablosAPIError):
         return base_str
 
 
-class ProxyError(AskPablosAPIError):
-    """
-    Raised when there is an error with the proxy service.
-
-    This typically happens when:
-    - The target URL is invalid or unreachable
-    - The proxy server encountered an error
-    - The requested proxy location is unavailable
-    """
-    pass
-
-
-class InvalidResponseError(AskPablosAPIError):
-    """
-    Raised when the API returns an invalid or malformed response.
-
-    This typically happens when:
-    - The API response is not valid JSON
-    - The response structure doesn't match expectations
-    - There are missing required fields in the response
-    """
-    pass
-
-
-class TimeoutError(AskPablosAPIError):
-    """
-    Raised when a request times out.
-
-    This typically happens when:
-    - The target site takes too long to respond
-    - The proxy server is overloaded
-    - The network connection is slow or unstable
-    """
-    pass
-
-
 class BrowserRenderingError(AskPablosAPIError):
     """
     Raised when there's an error with headless browser rendering.
-
-    This typically happens when:
-    - The page JavaScript execution fails
-    - The page has anti-bot measures that block the browser
-    - The page structure is incompatible with headless rendering
     """
     pass
 
 
-class ConfigurationError(AskPablosAPIError):
-    """
-    Raised when there's an error in the middleware configuration.
-
-    This typically happens when:
-    - Required API keys are missing or invalid
-    - Configuration settings are incompatible
-    - Environment variables are improperly set
-    """
-    pass
-
-
-def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] = None) -> AskPablosAPIError:
+def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] = None) -> Exception:
     """
     Factory function to create the appropriate exception based on status code.
 
@@ -149,28 +82,35 @@ def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] =
         response_data: API response data if available
 
     Returns:
-        An appropriate AskPablosAPIError subclass instance
+        An appropriate Exception instance (built-in when possible)
     """
     message = "An error occurred with the AskPablos API"
 
     if response_data and isinstance(response_data, dict):
-        error_msg = response_data.get('error', {}).get('message')
-        if error_msg:
-            message = error_msg
+        error_data = response_data.get('error')
+        if isinstance(error_data, dict) and 'message' in error_data:
+            message = error_data['message']
+        elif isinstance(error_data, str):
+            message = error_data
+        elif 'message' in response_data:
+            message = response_data['message']
 
-    # Map status codes to exception types
-    if status_code == 401:
-        return AuthenticationError(message, status_code, response_data)
+    if status_code == 401 or status_code == 403:
+        return PermissionError(f"[{status_code}] Authentication failed: {message}")
     elif status_code == 429:
         return RateLimitError(message, status_code, response_data)
     elif status_code == 408:
-        return TimeoutError(message, status_code, response_data)
+        return TimeoutError(f"[{status_code}] Request timed out: {message}")
+    elif status_code == 400:
+        return ValueError(f"[{status_code}] Invalid configuration: {message}")
     elif 400 <= status_code < 500:
-        # Client errors
-        return AskPablosAPIError(message, status_code, response_data)
+        # Other client errors
+        return ValueError(f"[{status_code}] Client error: {message}")
+    elif status_code == 502 or status_code == 504:
+        # Bad gateway or gateway timeout often related to proxy issues
+        return ConnectionError(f"[{status_code}] Proxy error: {message}")
     elif 500 <= status_code < 600:
         # Server errors
-        return ProxyError(message, status_code, response_data)
+        return RuntimeError(f"[{status_code}] Server error: {message}")
     else:
-        # Unknown status code
         return AskPablosAPIError(message, status_code, response_data)

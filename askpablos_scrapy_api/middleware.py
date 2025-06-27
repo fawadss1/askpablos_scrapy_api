@@ -3,15 +3,16 @@ import requests
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 from typing import Optional
+import json
 
 from .auth import sign_request, create_auth_headers
 from .config import Config
 from .endpoints import API_URL
 from .version import __version__
+from .utils import extract_response_data
 from .exceptions import (
-    AskPablosAPIError, InvalidResponseError, ProxyError,
-    TimeoutError, BrowserRenderingError,
-    ConfigurationError, handle_api_error
+    AskPablosAPIError, RateLimitError,
+    BrowserRenderingError, handle_api_error
 )
 
 # Configure logger
@@ -54,9 +55,18 @@ class AskPablosAPIDownloaderMiddleware:
         }
     """
 
-    def __init__(self, api_key, secret_key):
+    def __init__(self, api_key, secret_key, config):
+        """
+        Initialize the middleware.
+
+        Args:
+            api_key: API key for authentication
+            secret_key: Secret key for request signing
+            config: Configuration object containing settings
+        """
         self.api_key = api_key
         self.secret_key = secret_key
+        self.config = config
         logger.debug(f"AskPablos Scrapy API initialized (version: {__version__})")
 
     @classmethod
@@ -76,13 +86,14 @@ class AskPablosAPIDownloaderMiddleware:
         try:
             config.validate()
         except ValueError as e:
-            error_msg = f"Configuration error: {e}"
+            error_msg = f"AskPablos API configuration validation failed: {e}"
             logger.error(error_msg)
-            raise ConfigurationError(error_msg)
+            raise ValueError(error_msg)
 
         return cls(
             api_key=config.get('API_KEY'),
-            secret_key=config.get('SECRET_KEY')
+            secret_key=config.get('SECRET_KEY'),
+            config=config
         )
 
     def process_request(self, request: Request, spider: Spider) -> Optional[HtmlResponse]:
@@ -95,11 +106,15 @@ class AskPablosAPIDownloaderMiddleware:
         browser = proxy_cfg.get("browser", False)
         rotate_proxy = proxy_cfg.get("rotate_proxy", False)
 
+        # Get timeout from configuration
+        timeout = self.config.get('TIMEOUT')
+
         payload = {
             "url": request.url,
             "method": request.method if hasattr(request, "method") else "GET",
             "browser": browser,
-            "rotateProxy": rotate_proxy
+            "rotateProxy": rotate_proxy,
+            "timeout": timeout,
         }
 
         try:
@@ -108,36 +123,36 @@ class AskPablosAPIDownloaderMiddleware:
             headers = create_auth_headers(self.api_key, signature_b64)
 
             # Log sanitized payload for debugging
-            logger.debug(f"Sending request to AskPablos API for {request.url}")
+            logger.debug(f"AskPablos API: Sending request for URL: {request.url}")
 
             # Make API request using the URL from constants
-            response = requests.post(API_URL, data=request_json, headers=headers, timeout=30)
+            response = requests.post(API_URL, data=request_json, headers=headers, timeout=timeout)
 
             # Handle HTTP error status codes
             if response.status_code != 200:
-                try:
-                    response_data = response.json()
-                except ValueError:
-                    response_data = None
-
+                response_data = extract_response_data(response)
                 # Use factory function to create appropriate exception
                 error = handle_api_error(response.status_code, response_data)
+                spider.crawler.stats.inc_value(f"askpablos/errors/{error.__class__.__name__}")
                 raise error
 
             # Parse response
             try:
                 proxy_response = response.json()
-            except ValueError:
-                raise InvalidResponseError("Invalid JSON response from API")
+            except (ValueError, json.JSONDecodeError):
+                spider.crawler.stats.inc_value("askpablos/errors/json_decode")
+                raise json.JSONDecodeError(f"AskPablos API returned invalid JSON response for {request.url}", "", 0)
 
             # Validate response content
             html_body = proxy_response.get("data")
             if not html_body:
-                raise ProxyError(f"No 'body' in response for {request.url}")
+                spider.crawler.stats.inc_value("askpablos/errors/empty_response")
+                raise ValueError(f"AskPablos API response missing required 'data' field for URL: {request.url}")
 
             # Handle browser rendering errors
             if browser and proxy_response.get("error"):
                 error_msg = proxy_response.get("error", "Unknown browser rendering error")
+                spider.crawler.stats.inc_value("askpablos/errors/browser_rendering")
                 raise BrowserRenderingError(error_msg, response=proxy_response)
 
             return HtmlResponse(
@@ -149,21 +164,25 @@ class AskPablosAPIDownloaderMiddleware:
             )
 
         except requests.exceptions.Timeout:
-            logger.error(f"Request timeout for {request.url}")
-            raise TimeoutError(f"Request to {request.url} timed out after 30 seconds")
+            spider.crawler.stats.inc_value("askpablos/errors/timeout")
+            raise TimeoutError(f"AskPablos API request timed out after {timeout} seconds for URL: {request.url}")
+
+        except requests.exceptions.ConnectionError as e:
+            spider.crawler.stats.inc_value("askpablos/errors/connection")
+            raise ConnectionError(f"AskPablos API connection error for URL: {request.url} - {str(e)}")
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Request error: {str(e)}")
-            raise AskPablosAPIError(f"Request failed: {str(e)}")
+            spider.crawler.stats.inc_value("askpablos/errors/request")
+            raise RuntimeError(f"AskPablos API request failed: {str(e)}")
 
-        except AskPablosAPIError as e:
-            # Log the error - this captures all our custom exceptions
-            logger.error(f"[AskPablos API] {str(e)}")
-            spider.crawler.stats.inc_value(f"askpablos/errors/{e.__class__.__name__}")
-            raise  # Re-raise the exception for downstream handling
+        except json.JSONDecodeError as e:
+            # Already incrementing stats in the inner try-except block
+            raise
+
+        except (RateLimitError, BrowserRenderingError, AskPablosAPIError) as e:
+            raise
 
         except Exception as e:
-            # Catch-all for unexpected errors
-            logger.error(f"[AskPablos API] Unexpected error processing {request.url}: {str(e)}")
+            logger.error(f"AskPablos API: Unexpected error processing URL: {request.url} - {str(e)}")
             spider.crawler.stats.inc_value("askpablos/errors/unexpected")
-            raise AskPablosAPIError(f"Unexpected error: {str(e)}")
+            raise RuntimeError(f"AskPablos API encountered an unexpected error: {str(e)}")
