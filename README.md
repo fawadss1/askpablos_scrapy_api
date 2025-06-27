@@ -2,7 +2,7 @@
 
 A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses.
 
-## Features
+## Key Features
 
 - 🔄 **Selective Proxying**: Only routes requests with `askpablos_api_map` in their meta
 - 🌐 **Headless Browser Support**: Render JavaScript-heavy pages
@@ -11,6 +11,12 @@ A professional Scrapy integration for seamlessly routing requests through AskPab
 - 🔁 **Automatic Retries**: With exponential backoff
 - ⚠️ **Comprehensive Error Handling**: Detailed logging and error reporting
 - 🛡️ **Rate Limiting**: Built-in request rate limiting to avoid overloading the API
+
+## Requirements
+
+- Python 3.7+
+- Scrapy 2.6+
+- Valid AskPablos Proxy API credentials
 
 ## Installation
 

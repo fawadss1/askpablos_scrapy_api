@@ -95,7 +95,6 @@ class MySpider(scrapy.Spider):
                 'askpablos_api_map': {
                     'browser': True,  # Use headless browser
                     'rotate_proxy': True,  # Use rotating proxies
-                    'country': 'US',  # Optional: request US IP
                 }
             }
         )
@@ -142,14 +141,6 @@ yield scrapy.Request(
         'askpablos_api_map': {
             'browser': True,  # Use headless browser
             'rotate_proxy': True,  # Use rotating proxy
-            'country': 'GB',  # Request UK proxy
-            'headers': {  # Custom headers for the request
-                'User-Agent': 'Custom User Agent',
-                'Accept-Language': 'en-US'
-            },
-            'cookies': {  # Custom cookies
-                'session': 'abc123'
-            },
             'timeout': 60  # Custom timeout for this request only
         }
     }
