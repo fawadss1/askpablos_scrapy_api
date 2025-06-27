@@ -1,36 +1,84 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "askpablos-scrapy-api"
 version = "0.2.1"
 description = "A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses"
 authors = [
-    { name="Fawad Ali", email="fawadstar6@gmail.com" }
+    { name = "Fawad Ali", email = "fawadstar6@gmail.com" }
 ]
-license = {text = "MIT"}
+license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.9"
 dependencies = [
     "scrapy>=2.6.0",
     "requests>=2.25.0"
 ]
 keywords = ["scrapy", "middleware", "proxy", "web-scraping", "headless-browser", "rotating-proxies"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Topic :: Internet :: WWW/HTTP",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
 
 [project.urls]
-Homepage = "https://github.com/fawadss1/askpablos_scrapy_api"
+source = "https://github.com/fawadss1/askpablos_scrapy_api"
 Documentation = "https://askpablos-scrapy-api.readthedocs.io/en/latest/index.html"
 "Bug Tracker" = "https://github.com/fawadss1/askpablos_scrapy_api/issues"
 
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+[tool.bumpversion]
+current_version = "0.2.1"
+commit = true
+tag = true
+tag_name = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = 'CHANGES.rst'
+search = "\\(unreleased\\)$"
+replace = "({now:%Y-%m-%d})"
+regex = true
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+parse = "version\\s*=\\s*['\"](?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
+
+[[tool.bumpversion.files]]
+filename = "askpablos_scrapy_api/version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "askpablos_scrapy_api/*.py",
+]
+
+[tool.mypy]
+check_untyped_defs = true
+ignore_missing_imports = true
+no_warn_no_return = true
+files = [
+    "askpablos_scrapy_api",
+    "tests"
+]
+
+[tool.pytest.ini_options]
+junit_family = "xunit2"
+testpaths = [
+    "askpablos_scrapy_api/",
+    "tests/"
+]
+minversion = "6.0"
+filterwarnings = [
+    "ignore::DeprecationWarning:twisted.web.http",
+]

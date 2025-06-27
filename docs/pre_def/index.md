@@ -14,7 +14,7 @@ A professional Scrapy integration for seamlessly routing requests through AskPab
 
 ## Requirements
 
-- Python 3.7+
+- Python 3.9+
 - Scrapy 2.6+
 - Valid AskPablos Proxy API credentials
 

@@ -16,6 +16,8 @@ This guide walks you through how to configure and use AskPablosScrapyAPI in your
 
 ## Installation
 
+AskPablos Scrapy API requires Python 3.9 or higher and Scrapy 2.6.0 or higher.
+
 Install the package using pip:
 
 ```bash

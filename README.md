@@ -1,4 +1,6 @@
 # AskPablos Scrapy API
+[![PyPI Version](https://img.shields.io/pypi/v/askpablos-scrapy-api.svg)](https://pypi.python.org/pypi/askpablos-scrapy-api)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/askpablos-scrapy-api.svg)](https://pypi.python.org/pypi/askpablos-scrapy-api)
 
 A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses.
 
