@@ -15,9 +15,12 @@ project = 'AskPablos Scrapy API'
 copyright = '2025, Fawad Ali'
 author = 'Fawad Ali'
 
-# Import the version from the package
-from askpablos_scrapy_api.version import __version__
-release = __version__
+# Import the version from the package - handle potential import errors gracefully
+try:
+    from askpablos_scrapy_api.version import __version__
+    release = __version__
+except ImportError:
+    release = '0.2.0'  # Default to this version if import fails
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -64,6 +67,9 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# Ensure the _static directory exists to prevent build warnings
+os.makedirs(os.path.join(os.path.dirname(__file__), '_static'), exist_ok=True)
+
 # -- Options for MyST Parser -------------------------------------------------
 myst_enable_extensions = [
     'tasklist',      # GitHub-style task lists
@@ -76,6 +82,7 @@ myst_enable_extensions = [
 autodoc_member_order = 'bysource'
 autodoc_typehints = 'description'
 autoclass_content = 'both'
+autodoc_mock_imports = ['scrapy', 'requests']
 
 # -- Intersphinx configuration ---------------------------------------
 intersphinx_mapping = {

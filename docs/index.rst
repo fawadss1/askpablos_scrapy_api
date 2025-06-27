@@ -7,9 +7,9 @@ Welcome to AskPablos Scrapy API's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   index
-   usage
-   faq
+   pre_def/index
+   pre_def/usage
+   pre_def/faq
    api
 
 Indices and tables
