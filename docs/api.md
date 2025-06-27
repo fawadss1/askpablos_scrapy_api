@@ -11,6 +11,7 @@ The middleware module is responsible for integrating with Scrapy's downloader mi
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
 ```
 
 ## Authentication Module
@@ -22,6 +23,7 @@ The authentication module handles secure API authentication using HMAC-SHA256 re
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
 ```
 
 ## Configuration Module
@@ -33,6 +35,7 @@ The configuration module manages settings and configuration options for the AskP
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
 ```
 
 ## Endpoints Module
@@ -44,6 +47,7 @@ The endpoints module provides access to different API endpoints offered by the A
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
 ```
 
 ## Exceptions Module
@@ -55,6 +59,7 @@ The exceptions module defines custom exceptions for error handling within the As
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
 ```
 
 ## Utilities Module
@@ -66,4 +71,5 @@ The utilities module provides helper functions for working with the AskPablos Sc
    :members:
    :undoc-members:
    :show-inheritance:
+   :special-members: __init__
 ```
