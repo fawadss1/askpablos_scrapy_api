@@ -182,4 +182,4 @@ def errback_handler(self, failure):
    - Check if the target website has anti-bot measures that require additional configuration
    - Try enabling the browser option for fully rendered pages
 
-For more help, check the [FAQ](./faq.md) or open an issue on the [GitHub repository](https://github.com/fawadss1/askpablos-scrapy-api/issues).
+For more help, check the [FAQ](faq.md) or open an issue on the [GitHub repository](https://github.com/fawadss1/askpablos-scrapy-api/issues).
