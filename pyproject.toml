@@ -1,6 +1,6 @@
 [project]
 name = "askpablos-scrapy-api"
-version = "0.2.0"
+version = "0.2.1"
 description = "A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses"
 authors = [
     { name="Fawad Ali", email="fawadstar6@gmail.com" }
@@ -28,7 +28,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/fawadss1/askpablos_scrapy_api"
-Documentation = "https://github.com/fawadss1/askpablos_scrapy_api/tree/master/docs"
+Documentation = "https://askpablos-scrapy-api.readthedocs.io/en/latest/index.html"
 "Bug Tracker" = "https://github.com/fawadss1/askpablos_scrapy_api/issues"
 
 [build-system]
