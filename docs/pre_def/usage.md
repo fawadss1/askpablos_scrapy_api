@@ -46,9 +46,9 @@ API_KEY = "your_api_key"  # Your AskPablos API key
 SECRET_KEY = "your_secret_key"  # Your AskPablos secret key
 
 # Optional settings
-ASKPABLOS_TIMEOUT = 30  # Request timeout in seconds
-ASKPABLOS_MAX_RETRIES = 2  # Maximum number of retries for failed requests
-ASKPABLOS_RETRY_DELAY = 1.0  # Initial delay between retries in seconds
+TIMEOUT = 30  # Request timeout in seconds
+MAX_RETRIES = 2  # Maximum number of retries for failed requests
+RETRY_DELAY = 1.0  # Initial delay between retries in seconds
 
 # Add the middleware
 DOWNLOADER_MIDDLEWARES = {
@@ -70,9 +70,9 @@ class MySpider(scrapy.Spider):
         },
         "API_KEY": "your-api-key-here",
         "SECRET_KEY": "your-secret-key-here",
-        "ASKPABLOS_TIMEOUT": 30,
-        "ASKPABLOS_MAX_RETRIES": 2,
-        "ASKPABLOS_RETRY_DELAY": 1.0
+        "TIMEOUT": 30,
+        "MAX_RETRIES": 2,
+        "RETRY_DELAY": 1.0
     }
     
     # ...spider implementation...
@@ -124,32 +124,30 @@ class ExampleSpider(scrapy.Spider):
 
 ---
 
----
-
 ## Configuration Options
 
 The `askpablos_api_map` accepts the following parameters:
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `browser` | Boolean | `False` | When `True`, uses a headless browser to render JavaScript and handle complex anti-bot measures |
-| `rotate_proxy` | Boolean | `False` | When `True`, routes the request through a rotating proxy to avoid IP-based rate limiting |
+| Parameter      | Type    | Default | Description                                                                                    |
+|----------------|---------|---------|------------------------------------------------------------------------------------------------|
+| `browser`      | Boolean | `False` | When `True`, uses a headless browser to render JavaScript and handle complex anti-bot measures |
+| `rotate_proxy` | Boolean | `False` | When `True`, routes the request through a rotating proxy to avoid IP-based rate limiting       |
 
 Required configuration settings:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `API_KEY` | String | Your AskPablos API key |
-| `SECRET_KEY` | String | Your AskPablos secret key |
-| `DOWNLOADER_MIDDLEWARES` | Dict | Scrapy downloader middlewares configuration |
+| Option                   | Type   | Description                                 |
+|--------------------------|--------|---------------------------------------------|
+| `API_KEY`                | String | Your AskPablos API key                      |
+| `SECRET_KEY`             | String | Your AskPablos secret key                   |
+| `DOWNLOADER_MIDDLEWARES` | Dict   | Scrapy downloader middlewares configuration |
 
 Recommended optional settings:
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ASKPABLOS_TIMEOUT` | Integer | 30 | Request timeout in seconds |
-| `ASKPABLOS_MAX_RETRIES` | Integer | 2 | Maximum number of retries for failed requests |
-| `ASKPABLOS_RETRY_DELAY` | Float | 1.0 | Initial delay between retries in seconds |
+| Option        | Type    | Default | Description                                   |
+|---------------|---------|---------|-----------------------------------------------|
+| `TIMEOUT`     | Integer | 30      | Request timeout in seconds                    |
+| `MAX_RETRIES` | Integer | 2       | Maximum number of retries for failed requests |
+| `RETRY_DELAY` | Float   | 1.0     | Initial delay between retries in seconds      |
 
 ---
 
@@ -157,7 +155,7 @@ Recommended optional settings:
 
 1. **Resource Management**: Use the headless browser option only when necessary, as it consumes more resources
 2. **Rate Limiting**: Respect website ToS by setting appropriate delays between requests
-3. **Timeout Configuration**: Adjust `ASKPABLOS_TIMEOUT` based on the target website's response time
+3. **Timeout Configuration**: Adjust `TIMEOUT` based on the target website's response time
 4. **Error Handling**: Add proper error handling for API unavailability scenarios
 
 ```python

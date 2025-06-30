@@ -40,9 +40,9 @@ API_KEY = "your_api_key"  # Your AskPablos API key
 SECRET_KEY = "your_secret_key"  # Your AskPablos secret key
 
 # Optional settings
-ASKPABLOS_TIMEOUT = 30  # Request timeout in seconds
-ASKPABLOS_MAX_RETRIES = 2  # Maximum number of retries for failed requests
-ASKPABLOS_RETRY_DELAY = 1.0  # Initial delay between retries in seconds
+TIMEOUT = 30  # Request timeout in seconds
+MAX_RETRIES = 2  # Maximum number of retries for failed requests
+RETRY_DELAY = 1.0  # Initial delay between retries in seconds
 
 # Add the middleware
 DOWNLOADER_MIDDLEWARES = {
@@ -62,9 +62,9 @@ class MySpider(scrapy.Spider):
         },
         "API_KEY": "your-api-key-here",
         "SECRET_KEY": "your-secret-key-here",
-        "ASKPABLOS_TIMEOUT": 30,
-        "ASKPABLOS_MAX_RETRIES": 2,
-        "ASKPABLOS_RETRY_DELAY": 1.0
+        "TIMEOUT": 30,
+        "MAX_RETRIES": 2,
+        "RETRY_DELAY": 1.0
     }
     
     # ...spider implementation...

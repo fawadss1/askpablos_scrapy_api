@@ -25,9 +25,9 @@ class Config:
         self._settings = {
             'API_KEY': settings.get('API_KEY'),
             'SECRET_KEY': settings.get('SECRET_KEY'),
-            'TIMEOUT': settings.get('ASKPABLOS_TIMEOUT', self.DEFAULT_TIMEOUT),
-            'RETRIES': settings.get('ASKPABLOS_MAX_RETRIES', self.DEFAULT_RETRIES),
-            'RETRY_DELAY': settings.get('ASKPABLOS_RETRY_DELAY', self.DEFAULT_RETRY_DELAY),
+            'TIMEOUT': settings.get('TIMEOUT', self.DEFAULT_TIMEOUT),
+            'RETRIES': settings.get('MAX_RETRIES', self.DEFAULT_RETRIES),
+            'RETRY_DELAY': settings.get('RETRY_DELAY', self.DEFAULT_RETRY_DELAY),
         }
 
     def load_from_env(self) -> None:
@@ -38,14 +38,14 @@ class Config:
         if 'ASKPABLOS_SECRET_KEY' in os.environ:
             self._settings['SECRET_KEY'] = os.environ['ASKPABLOS_SECRET_KEY']
 
-        if 'ASKPABLOS_TIMEOUT' in os.environ:
-            self._settings['TIMEOUT'] = int(os.environ['ASKPABLOS_TIMEOUT'])
+        if 'TIMEOUT' in os.environ:
+            self._settings['TIMEOUT'] = int(os.environ['TIMEOUT'])
 
-        if 'ASKPABLOS_MAX_RETRIES' in os.environ:
-            self._settings['RETRIES'] = int(os.environ['ASKPABLOS_MAX_RETRIES'])
+        if 'MAX_RETRIES' in os.environ:
+            self._settings['RETRIES'] = int(os.environ['MAX_RETRIES'])
 
-        if 'ASKPABLOS_RETRY_DELAY' in os.environ:
-            self._settings['RETRY_DELAY'] = float(os.environ['ASKPABLOS_RETRY_DELAY'])
+        if 'RETRY_DELAY' in os.environ:
+            self._settings['RETRY_DELAY'] = float(os.environ['RETRY_DELAY'])
 
     def validate(self) -> None:
         """Validate that all required configuration is present."""

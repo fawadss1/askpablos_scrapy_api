@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "askpablos-scrapy-api"
-version = "0.2.1"
+version = "0.2.2"
 description = "A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses"
 authors = [
     { name = "Fawad Ali", email = "fawadstar6@gmail.com" }
@@ -40,7 +40,7 @@ Documentation = "https://askpablos-scrapy-api.readthedocs.io/en/latest/index.htm
 "Bug Tracker" = "https://github.com/fawadss1/askpablos_scrapy_api/issues"
 
 [tool.bumpversion]
-current_version = "0.2.1"
+current_version = "0.2.2"
 commit = true
 tag = true
 tag_name = "{new_version}"
