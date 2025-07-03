@@ -1,7 +1,10 @@
 import logging
+from base64 import b64decode
+
 import requests
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
+from scrapy.exceptions import IgnoreRequest
 from typing import Optional
 import json
 
@@ -11,7 +14,7 @@ from .endpoints import API_URL
 from .version import __version__
 from .utils import extract_response_data
 from .exceptions import (
-    AskPablosAPIError, RateLimitError,
+    AskPablosAPIError, RateLimitError, AuthenticationError,
     BrowserRenderingError, handle_api_error
 )
 
@@ -144,7 +147,7 @@ class AskPablosAPIDownloaderMiddleware:
                 raise json.JSONDecodeError(f"AskPablos API returned invalid JSON response for {request.url}", "", 0)
 
             # Validate response content
-            html_body = proxy_response.get("data")
+            html_body = proxy_response.get("responseBody", "")
             if not html_body:
                 spider.crawler.stats.inc_value("askpablos/errors/empty_response")
                 raise ValueError(f"AskPablos API response missing required 'data' field for URL: {request.url}")
@@ -155,12 +158,16 @@ class AskPablosAPIDownloaderMiddleware:
                 spider.crawler.stats.inc_value("askpablos/errors/browser_rendering")
                 raise BrowserRenderingError(error_msg, response=proxy_response)
 
+            body = b64decode(html_body).decode()
+
             return HtmlResponse(
                 url=request.url,
-                body=html_body.encode() if isinstance(html_body, str) else html_body,
+                body=body,
                 encoding="utf-8",
                 request=request,
-                status=response.status_code
+                status=response.status_code,
+                flags=["askpablos-api"],
+                raw_response=proxy_response
             )
 
         except requests.exceptions.Timeout:
@@ -175,14 +182,25 @@ class AskPablosAPIDownloaderMiddleware:
             spider.crawler.stats.inc_value("askpablos/errors/request")
             raise RuntimeError(f"AskPablos API request failed: {str(e)}")
 
-        except json.JSONDecodeError as e:
-            # Already incrementing stats in the inner try-except block
+        except json.JSONDecodeError:
             raise
 
-        except (RateLimitError, BrowserRenderingError, AskPablosAPIError) as e:
+        except AuthenticationError as e:
+            # Critical authentication error - stop the spider immediately
+            spider.crawler.stats.inc_value("askpablos/errors/authentication")
+            error_msg = f"Authentication failed with AskPablos API: {str(e)}."
+            logger.error(error_msg)
+
+            # Use crawler's signal system to close the spider
+            spider.crawler.engine.close_spider(spider, error_msg)
+
+            # Raise IgnoreRequest to prevent this request from being processed further
+            raise IgnoreRequest(error_msg)
+
+        except (RateLimitError, BrowserRenderingError, AskPablosAPIError):
             raise
 
         except Exception as e:
-            logger.error(f"AskPablos API: Unexpected error processing URL: {request.url} - {str(e)}")
+            logger.error(e)
             spider.crawler.stats.inc_value("askpablos/errors/unexpected")
             raise RuntimeError(f"AskPablos API encountered an unexpected error: {str(e)}")

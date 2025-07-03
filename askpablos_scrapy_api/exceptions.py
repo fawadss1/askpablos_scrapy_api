@@ -39,6 +39,17 @@ class AskPablosAPIError(Exception):
             return self.message
 
 
+class AuthenticationError(AskPablosAPIError):
+    """
+    Raised when API key or secret key authentication fails.
+    This is a critical error that should stop the spider.
+    """
+
+    def __init__(self, message: str, status_code: Optional[int] = None, response: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code, response)
+        self.is_critical = True  # Flag to indicate this should stop the spider
+
+
 class RateLimitError(AskPablosAPIError):
     """
     Raised when the API rate limit is exceeded.
@@ -96,7 +107,7 @@ def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] =
             message = response_data['message']
 
     if status_code == 401 or status_code == 403:
-        return PermissionError(f"[{status_code}] Authentication failed: {message}")
+        return AuthenticationError(f"Authentication failed: {message}", status_code, response_data)
     elif status_code == 429:
         return RateLimitError(message, status_code, response_data)
     elif status_code == 408:
