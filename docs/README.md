@@ -1,6 +1,37 @@
-# AskPablos Scrapy API
+# AskPablos Scrapy API Documentation
 
 This directory contains the documentation for AskPablos Scrapy API.
+
+## Quick Start
+
+The AskPablos Scrapy API provides enhanced web scraping capabilities with browser automation and JavaScript strategies.
+
+### Basic Configuration
+
+```python
+# In your spider
+meta = {
+    "askpablos_api_map": {
+        "browser": True,
+        "rotate_proxy": True,
+        "js_strategy": "DEFAULT"
+    }
+}
+```
+
+### Settings Configuration
+
+Configure global settings in your `settings.py`:
+
+```python
+# Required
+API_KEY = "your_api_key_here"
+SECRET_KEY = "your_secret_key_here"
+
+# Optional
+TIMEOUT = 30          # Request timeout
+MAX_RETRIES = 2       # Maximum retries
+```
 
 ## Building the documentation
 

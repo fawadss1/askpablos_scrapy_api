@@ -14,7 +14,6 @@ class Config:
     # Default values
     DEFAULT_TIMEOUT = 30
     DEFAULT_RETRIES = 2
-    DEFAULT_RETRY_DELAY = 1.0
 
     def __init__(self):
         """Initialize an empty configuration."""
@@ -27,7 +26,6 @@ class Config:
             'SECRET_KEY': settings.get('SECRET_KEY'),
             'TIMEOUT': settings.get('TIMEOUT', self.DEFAULT_TIMEOUT),
             'RETRIES': settings.get('MAX_RETRIES', self.DEFAULT_RETRIES),
-            'RETRY_DELAY': settings.get('RETRY_DELAY', self.DEFAULT_RETRY_DELAY),
         }
 
     def load_from_env(self) -> None:
@@ -43,9 +41,6 @@ class Config:
 
         if 'MAX_RETRIES' in os.environ:
             self._settings['RETRIES'] = int(os.environ['MAX_RETRIES'])
-
-        if 'RETRY_DELAY' in os.environ:
-            self._settings['RETRY_DELAY'] = float(os.environ['RETRY_DELAY'])
 
     def validate(self) -> None:
         """Validate that all required configuration is present."""

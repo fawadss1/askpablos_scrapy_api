@@ -1,16 +1,17 @@
 # AskPablos Scrapy API
 
-A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses.
+A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and JavaScript strategies.
 
 ## Key Features
 
 - 🔄 **Selective Proxying**: Only routes requests with `askpablos_api_map` in their meta
 - 🌐 **Headless Browser Support**: Render JavaScript-heavy pages
 - 🔄 **Rotating Proxies**: Access to a pool of rotating IP addresses
+- 🧠 **JavaScript Strategies**: Three modes for different scraping scenarios
+- 📸 **Screenshot Capture**: Take screenshots
 - 🔒 **Secure Authentication**: HMAC-SHA256 request signing
-- 🔁 **Automatic Retries**: With exponential backoff
+- 🔁 **Automatic Retries**: Configurable retry logic
 - ⚠️ **Comprehensive Error Handling**: Detailed logging and error reporting
-- 🛡️ **Rate Limiting**: Built-in request rate limiting to avoid overloading the API
 
 ## Requirements
 
@@ -30,84 +31,67 @@ Or install directly from GitHub:
 pip install git+https://github.com/fawadss1/askpablos-scrapy-api.git
 ```
 
-## Basic Setup
+## Quick Start
 
-Add AskPablosAPIDownloaderMiddleware to your Scrapy settings:
+### 1. Configure Settings
+
+Add to your `settings.py`:
 
 ```python
-# In your settings.py
-API_KEY = "your_api_key"  # Your AskPablos API key
-SECRET_KEY = "your_secret_key"  # Your AskPablos secret key
+# Required settings
+API_KEY = "your_api_key"          # Your AskPablos API key
+SECRET_KEY = "your_secret_key"    # Your AskPablos secret key
 
-# Optional settings
-TIMEOUT = 30  # Request timeout in seconds
-MAX_RETRIES = 2  # Maximum number of retries for failed requests
-RETRY_DELAY = 1.0  # Initial delay between retries in seconds
+# Optional global settings
+TIMEOUT = 30          # Request timeout in seconds
+MAX_RETRIES = 2       # Maximum number of retries
 
 # Add the middleware
 DOWNLOADER_MIDDLEWARES = {
-    'askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware': 950,  # Adjust priority as needed
+    'askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware': 585,
 }
 ```
 
-Or use custom settings in your spider:
-
-```python
-class MySpider(scrapy.Spider):
-    name = 'myspider'
-    
-    custom_settings = {
-        "DOWNLOADER_MIDDLEWARES": {
-            "askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware": 543,
-        },
-        "API_KEY": "your-api-key-here",
-        "SECRET_KEY": "your-secret-key-here",
-        "TIMEOUT": 30,
-        "MAX_RETRIES": 2,
-        "RETRY_DELAY": 1.0
-    }
-    
-    # ...spider implementation...
-```
-
-## Quick Example
+### 2. Use in Your Spider
 
 ```python
 import scrapy
 
 class MySpider(scrapy.Spider):
-    name = 'myspider'
+    name = 'example'
     
     def start_requests(self):
-        urls = [
-            'https://example.com',
-            'https://api-intensive-site.com'
-        ]
-        
-        # Regular Scrapy request - NOT using the API
-        yield scrapy.Request(url=urls[0], callback=self.parse_regular)
-        
-        # Request using AskPablos API with a headless browser
         yield scrapy.Request(
-            url=urls[1],
-            callback=self.parse_api,
+            url='https://example.com',
             meta={
-                'askpablos_api_map': {
-                    'browser': True,  # Use headless browser
-                    'rotate_proxy': True,  # Use rotating proxies
+                "askpablos_api_map": {
+                    "browser": True,
+                    "rotate_proxy": True,
+                    "js_strategy": "DEFAULT"
                 }
             }
         )
-    
-    def parse_regular(self, response):
-        # Handle response from a direct request
-        pass
-        
-    def parse_api(self, response):
-        # Handle response from AskPablos API
-        # (Response will be processed exactly like a normal Scrapy response)
-        pass
 ```
+
+## Configuration Options
+
+### Meta Configuration
+
+| Option          | Type     | Description                                            |
+|-----------------|----------|--------------------------------------------------------|
+| `browser`       | bool     | Use headless browser rendering                         |
+| `rotate_proxy`  | bool     | Use rotating proxy IP addresses                        |
+| `wait_for_load` | bool     | Wait for page to fully load (requires browser: True)   |
+| `screenshot`    | bool     | Take screenshot of the page (requires browser: True)   |
+| `js_strategy`   | bool/str | JavaScript execution strategy (requires browser: True) |
+
+**Important Note:** The options `wait_for_load`, `screenshot`, and `js_strategy` only work when `browser: True` is set.
+
+### JavaScript Strategies
+
+- `True` - Runs stealth script & minimal JS
+- `False` - No stealth injection, no JS rendering
+- `"DEFAULT"` - Normal browser behavior
 
 ## Environment Variables
 

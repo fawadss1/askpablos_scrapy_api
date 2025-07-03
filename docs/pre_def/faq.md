@@ -6,7 +6,7 @@ This document addresses common questions and scenarios you may encounter when us
 
 ### What is AskPablosScrapyAPI?
 
-AskPablosScrapyAPI is a Scrapy integration that routes selected requests through the AskPablos proxy API. It allows you to seamlessly use features like headless browsers and rotating proxies in your Scrapy spiders.
+AskPablosScrapyAPI is a Scrapy integration that routes selected requests through the AskPablos proxy API. It allows you to seamlessly use features like headless browsers, rotating proxies, and JavaScript strategies in your Scrapy spiders.
 
 ### How does AskPablosScrapyAPI work?
 
@@ -16,9 +16,64 @@ The integration intercepts requests that have the `askpablos_api_map` key in the
 
 AskPablosScrapyAPI works with most websites, but success depends on several factors:
 - The complexity of the target website's anti-bot measures
-- The configuration options you've selected
+- The JavaScript strategy you've selected
 - Current proxy availability
 - API rate limits on your plan
+
+## Configuration Questions
+
+### Where do I configure timeout and retry settings?
+
+Timeout and retry settings are configured globally in your `settings.py` file:
+
+```python
+# In settings.py
+TIMEOUT = 30          # Request timeout in seconds
+MAX_RETRIES = 2       # Maximum number of retries
+```
+
+These cannot be overridden in individual request meta.
+
+### Do all options work without browser rendering?
+
+No, several options require `browser: True` to function:
+
+- `wait_for_load` - Only works with browser rendering
+- `screenshot` - Only works with browser rendering  
+- `js_strategy` - Only works with browser rendering
+
+If you set these options without `browser: True`, they will be ignored.
+
+### What's the difference between the JavaScript strategies?
+
+- `True` - Runs stealth script & minimal JS (good for protected sites)
+- `False` - No stealth injection, no JS rendering (fastest for static content)
+- `"DEFAULT"` - Normal browser behavior (best for most sites)
+
+**Note:** All JavaScript strategies require `browser: True` to work.
+
+### Can I take screenshots for debugging?
+
+Yes, set `screenshot: True` in your request meta, but **you must also set `browser: True`**:
+
+```python
+meta = {
+    "askpablos_api_map": {
+        "browser": True,        # Required for screenshot functionality
+        "screenshot": True
+    }
+}
+```
+
+Access the screenshot in your callback:
+
+```python
+def parse(self, response):
+    screenshot = response.meta.get('screenshot')
+    if screenshot:
+        with open('debug.png', 'wb') as f:
+            f.write(screenshot)
+```
 
 ## Technical Questions
 
@@ -37,121 +92,95 @@ def start_requests(self):
 
 ### How do I handle JavaScript-rendered content?
 
-Set `browser: True` in the `askpablos_api_map` to use a headless browser that will fully render JavaScript before returning the response:
+Set `browser: True` and choose an appropriate `js_strategy`:
 
 ```python
-meta={
+meta = {
     "askpablos_api_map": {
-        "browser": True
+        "browser": True,
+        "js_strategy": "DEFAULT",
+        "wait_for_load": True
     }
 }
 ```
 
 ### Does this integrate with Scrapy's download handlers?
 
-Yes, AskPablosScrapyAPI integrates seamlessly with Scrapy's download handlers. It processes the request before any handlers are called and returns a standard HtmlResponse object that other components can process normally.
+Yes, AskPablosScrapyAPI works as a downloader middleware, which integrates seamlessly with Scrapy's request/response cycle without interfering with other components.
 
-### Can I modify headers for proxied requests?
+### Can I override retry delay for specific requests?
 
-The current version doesn't support direct header modification for proxy requests. This feature may be added in future releases.
+No, retry delays are handled automatically by the AskPablos service and cannot be configured.
 
 ## Troubleshooting
 
-### I'm getting authentication errors
+### Why am I getting authentication errors?
 
-If you're seeing authentication errors, verify:
-1. Your API_KEY and SECRET_KEY are correctly set in settings.py
-2. Your API subscription is active
-3. You have sufficient credits remaining in your account
+1. Verify your API_KEY and SECRET_KEY in settings.py
+2. Check if you're using environment variables correctly
+3. Ensure your API credentials are active
 
 ### My requests are timing out
 
-If your requests are timing out:
-1. The target website may be slow to respond
-2. Consider increasing the `DOWNLOAD_TIMEOUT` setting in Scrapy
-3. Check if the website has heavy JavaScript that takes longer to render
+1. Increase the TIMEOUT value in settings.py
+2. Check if the target website is slow to respond
+3. Consider using different JavaScript strategies
 
-### I'm getting empty content in responses
+### JavaScript isn't working properly
 
-This can happen if:
-1. The website has sophisticated anti-bot measures
-2. You need to enable the `browser: True` option for JavaScript rendering
-3. The website is blocking the proxy IP addresses
+1. Try different `js_strategy` values:
+   - Use `"DEFAULT"` for normal sites
+   - Use `True` for stealth mode
+   - Use `False` for static content
+2. Enable `wait_for_load: True` for SPAs
+3. Take screenshots to debug what the browser sees
 
-### Rate limiting issues
+### I'm being rate limited
 
-If you're being rate-limited:
-1. Enable `rotate_proxy: True` to cycle through different IP addresses
-2. Add delays between requests using Scrapy's `DOWNLOAD_DELAY` setting
-3. Consider using a higher tier API plan with more allowances
+1. Reduce concurrent requests in your spider
+2. Consider using fewer requests per second
 
-## Billing and Subscription
+### Screenshots aren't working
 
-### How am I charged for usage?
+1. Ensure `browser: True` is set
+2. Check that `screenshot: True` is in your meta
+3. Verify the response contains screenshot data
 
-Usage is typically charged based on:
-- Number of requests
-- Usage of headless browsers (more resource-intensive)
-- Proxy rotation frequency
+## Best Practices
 
-Refer to your AskPablos API service subscription for specific details.
+### When should I use browser rendering?
 
-### Can I set usage limits?
+Use `browser: True` when:
+- The site heavily relies on JavaScript
+- Content is loaded dynamically
+- You need to interact with the page
+- The site uses SPA (Single Page Application) architecture
 
-Currently, AskPablosScrapyAPI doesn't include built-in usage limitations. You can:
-1. Use Scrapy's `CLOSESPIDER_PAGECOUNT` or `CLOSESPIDER_ITEMCOUNT` settings
-2. Implement custom extensions to track and limit requests
-3. Monitor your usage through the AskPablos dashboard
+### How to optimize performance?
 
-### My subscription credits are depleted, but my spider is still running
+1. Use `js_strategy: False` for static content
+2. Disable screenshots in production
+3. Set appropriate timeout values
+4. Reduce request frequency to avoid rate limiting
 
-AskPablosScrapyAPI will return errors when API requests fail due to depleted credits. To handle this:
+### How to debug issues?
 
-1. Implement error handling in your spider
-2. Set up alerts based on response statuses
-3. Use the `errback` parameter in requests for graceful fallbacks:
+1. Enable screenshots: `screenshot: True`
+2. Check the raw API response: `response.meta.get('raw_api_response')`
+3. Use appropriate log levels
+4. Test with different JavaScript strategies
 
-```python
-yield scrapy.Request(
-    url="https://example.com", 
-    callback=self.parse,
-    errback=self.error_handler,
-    meta={"askpablos_api_map": {"browser": True}}
-)
+## Error Codes
 
-def error_handler(self, failure):
-    self.logger.error(f"Request failed: {failure}")
-    # Implement custom handling for API failures
-```
+### Common HTTP Status Codes
 
-## Advanced Usage
+- **401**: Authentication failed - check your API credentials
+- **429**: Rate limited - reduce request frequency
+- **500**: Server error - contact AskPablos support
+- **503**: Service unavailable - try again later
 
-### Can I use AskPablosScrapyAPI selectively in my project?
+### Scrapy Integration Errors
 
-Yes! AskPablosScrapyAPI only activates for requests that explicitly include the `askpablos_api_map` in their `meta`. All other requests will follow the standard Scrapy processing path.
-
-### Is there a way to retry failed requests with different settings?
-
-Yes, you can implement custom retry logic:
-
-```python
-def errback_handler(self, failure):
-    request = failure.request
-    if "askpablos_api_map" in request.meta:
-        # Try again with different settings
-        new_meta = request.meta.copy()
-        new_meta["askpablos_api_map"] = {"browser": True, "rotate_proxy": True}
-        
-        yield scrapy.Request(
-            url=request.url,
-            callback=request.callback,
-            meta=new_meta,
-            dont_filter=True  # Allow duplicate requests
-        )
-```
-
-### Can I combine this with other Scrapy components?
-
-Absolutely. AskPablosScrapyAPI works well with other Scrapy components. Just be mindful of the order in which they're executed, which is controlled by the number assigned to each middleware in the `DOWNLOADER_MIDDLEWARES` setting.
-
-If you have any questions not covered here, please open an issue on the [GitHub repository](https://github.com/fawadss1/askpablos-scrapy-api/issues).
+- **IgnoreRequest**: Configuration validation failed
+- **TimeoutError**: Request exceeded timeout limit
+- **ConnectionError**: Network connectivity issues

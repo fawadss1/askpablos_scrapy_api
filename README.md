@@ -13,10 +13,11 @@ Full documentation is available at: [https://askpablos-scrapy-api.readthedocs.io
 - 🔄 **Selective Proxying**: Only routes requests with `askpablos_api_map` in their meta
 - 🌐 **Headless Browser Support**: Render JavaScript-heavy pages
 - 🔄 **Rotating Proxies**: Access to a pool of rotating IP addresses
+- 🧠 **JavaScript Strategies**: Three modes for different scraping scenarios
+- 📸 **Screenshot Capture**: Take screenshots
 - 🔒 **Secure Authentication**: HMAC-SHA256 request signing
-- 🔁 **Automatic Retries**: With exponential backoff
+- 🔁 **Automatic Retries**: Configurable retry logic
 - ⚠️ **Comprehensive Error Handling**: Detailed logging and error reporting
-- 🛡️ **Rate Limiting**: Built-in request rate limiting to avoid overloading the API
 
 ## Quick Installation
 

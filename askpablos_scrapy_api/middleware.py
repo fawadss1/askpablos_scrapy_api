@@ -13,6 +13,7 @@ from .config import Config
 from .endpoints import API_URL
 from .version import __version__
 from .utils import extract_response_data
+from .operations import AskPablosAPIMapValidator, create_api_payload
 from .exceptions import (
     AskPablosAPIError, RateLimitError, AuthenticationError,
     BrowserRenderingError, handle_api_error
@@ -30,7 +31,10 @@ class AskPablosAPIDownloaderMiddleware:
         meta = {
             "askpablos_api_map": {
                 "browser": True,          # Optional: Use headless browser
-                "rotate_proxy": True      # Optional: Use rotating proxy IP
+                "rotate_proxy": True,     # Optional: Use rotating proxy IP
+                "wait_for_load": True,    # Optional: Wait for page load (requires browser: True)
+                "screenshot": True,       # Optional: Take screenshot (requires browser: True)
+                "js_strategy": "DEFAULT", # Optional: JavaScript strategy (requires browser: True)
             }
         }
 
@@ -43,7 +47,6 @@ class AskPablosAPIDownloaderMiddleware:
     Optional settings:
         TIMEOUT = 30  # Request timeout in seconds
         MAX_RETRIES = 2  # Maximum number of retries for failed requests
-        RETRY_DELAY = 1.0  # Initial delay between retries in seconds
     """
 
     def __init__(self, api_key, secret_key, config):
@@ -94,23 +97,23 @@ class AskPablosAPIDownloaderMiddleware:
         if not proxy_cfg or not isinstance(proxy_cfg, dict) or not proxy_cfg:
             return None  # Skip proxying
 
-        browser = proxy_cfg.get("browser", False)
-        rotate_proxy = proxy_cfg.get("rotate_proxy", False)
-
-        # Get timeout and max retries from configuration
-        timeout = self.config.get('TIMEOUT')
-        max_retries = self.config.get('RETRIES')
-
-        payload = {
-            "url": request.url,
-            "method": request.method if hasattr(request, "method") else "GET",
-            "browser": browser,
-            "rotateProxy": rotate_proxy,
-            "timeout": timeout,
-            "max_retries": max_retries,
-        }
-
         try:
+            # Validate and normalize the configuration
+            validated_config = AskPablosAPIMapValidator.validate_config(proxy_cfg)
+
+            # Create API payload with all the configuration
+            payload = create_api_payload(
+                request_url=request.url,
+                request_method=request.method if hasattr(request, "method") else "GET",
+                config=validated_config
+            )
+
+            # Override with default values if not specified
+            if 'timeout' not in payload:
+                payload['timeout'] = self.config.get('TIMEOUT')
+            if 'maxRetries' not in payload:
+                payload['maxRetries'] = self.config.get('RETRIES')
+
             # Sign the request using auth module
             request_json, signature_b64 = sign_request(payload, self.secret_key)
             headers = create_auth_headers(self.api_key, signature_b64)
@@ -119,7 +122,12 @@ class AskPablosAPIDownloaderMiddleware:
             logger.debug(f"AskPablos API: Sending request for URL: {request.url}")
 
             # Make API request using the URL from constants
-            response = requests.post(API_URL, data=request_json, headers=headers, timeout=timeout)
+            response = requests.post(
+                API_URL,
+                data=request_json,
+                headers=headers,
+                timeout=payload.get('timeout', self.config.get('TIMEOUT'))
+            )
 
             # Handle HTTP error status codes
             if response.status_code != 200:
@@ -140,10 +148,10 @@ class AskPablosAPIDownloaderMiddleware:
             html_body = proxy_response.get("responseBody", "")
             if not html_body:
                 spider.crawler.stats.inc_value("askpablos/errors/empty_response")
-                raise ValueError(f"AskPablos API response missing required 'data' field for URL: {request.url}")
+                raise ValueError(f"AskPablos API response missing required 'responseBody' field")
 
             # Handle browser rendering errors
-            if browser and proxy_response.get("error"):
+            if validated_config.get("browser") and proxy_response.get("error"):
                 error_msg = proxy_response.get("error", "Unknown browser rendering error")
                 spider.crawler.stats.inc_value("askpablos/errors/browser_rendering")
                 raise BrowserRenderingError(error_msg, response=proxy_response)
@@ -153,18 +161,30 @@ class AskPablosAPIDownloaderMiddleware:
             updated_meta = request.meta.copy()
             updated_meta['raw_api_response'] = proxy_response
 
+            # Add additional response data to meta
+            if proxy_response.get("screenshot"):
+                updated_meta['screenshot'] = b64decode(proxy_response["screenshot"])
+
             return HtmlResponse(
                 url=request.url,
                 body=body,
                 encoding="utf-8",
                 request=request.replace(meta=updated_meta),
-                status=response.status_code,
+                status=proxy_response.get("statusCode", 200),
                 flags=["askpablos-api"]
             )
 
+        except json.JSONDecodeError:
+            raise
+        except ValueError as e:
+            # Configuration validation error
+            spider.crawler.stats.inc_value("askpablos/errors/config_validation")
+            logger.error(f"AskPablos API configuration error: {e}")
+            raise IgnoreRequest(f"Invalid askpablos_api_map configuration: {e}")
+
         except requests.exceptions.Timeout:
             spider.crawler.stats.inc_value("askpablos/errors/timeout")
-            raise TimeoutError(f"AskPablos API request timed out after {timeout} seconds for URL: {request.url}")
+            raise TimeoutError(f"AskPablos API request timed out for URL: {request.url}")
 
         except requests.exceptions.ConnectionError as e:
             spider.crawler.stats.inc_value("askpablos/errors/connection")
@@ -173,9 +193,6 @@ class AskPablosAPIDownloaderMiddleware:
         except requests.exceptions.RequestException as e:
             spider.crawler.stats.inc_value("askpablos/errors/request")
             raise RuntimeError(f"AskPablos API request failed: {str(e)}")
-
-        except json.JSONDecodeError:
-            raise
 
         except AuthenticationError as e:
             # Critical authentication error - stop the spider immediately

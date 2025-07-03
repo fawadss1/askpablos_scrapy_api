@@ -34,135 +34,173 @@ pip install git+https://github.com/fawadss1/askpablos-scrapy-api.git
 
 ## Configuration
 
-There are multiple ways to configure the AskPablos Scrapy API middleware:
+### Global Settings (settings.py)
 
-### 1. Project-wide Settings (settings.py)
-
-You can configure the middleware for all spiders in your project by adding it to your project's `settings.py` file:
+Configure the middleware globally in your project's `settings.py` file:
 
 ```python
-# In your settings.py
-API_KEY = "your_api_key"  # Your AskPablos API key
-SECRET_KEY = "your_secret_key"  # Your AskPablos secret key
+# Required settings
+API_KEY = "your_api_key"          # Your AskPablos API key
+SECRET_KEY = "your_secret_key"    # Your AskPablos secret key
 
-# Optional settings
-TIMEOUT = 30  # Request timeout in seconds
-MAX_RETRIES = 2  # Maximum number of retries for failed requests
-RETRY_DELAY = 1.0  # Initial delay between retries in seconds
+# Optional global settings
+TIMEOUT = 30          # Request timeout in seconds
+MAX_RETRIES = 2       # Maximum number of retries for failed requests
 
 # Add the middleware
 DOWNLOADER_MIDDLEWARES = {
-    'askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware': 950,  # Adjust priority as needed
+    'askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware': 585,
 }
 ```
 
-### 2. Spider-specific Configuration (custom_settings)
+### Per-Request Configuration
 
-You can also configure the middleware for specific spiders using the `custom_settings` attribute:
+Configure individual requests using the `askpablos_api_map` in request meta:
 
 ```python
-class MySpider(scrapy.Spider):
-    name = 'myspider'
-    
-    custom_settings = {
-        "DOWNLOADER_MIDDLEWARES": {
-            "askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware": 543,
-        },
-        "API_KEY": "your-api-key-here",
-        "SECRET_KEY": "your-secret-key-here",
-        "TIMEOUT": 30,
-        "MAX_RETRIES": 2,
-        "RETRY_DELAY": 1.0
+meta = {
+    "askpablos_api_map": {
+        "browser": True,          # Use headless browser
+        "rotate_proxy": True,     # Rotate proxy IPs  
+        "wait_for_load": True,    # Wait for page load (requires browser: True)
+        "screenshot": True,       # Take screenshot (requires browser: True)
+        "js_strategy": "DEFAULT", # JavaScript strategy (requires browser: True)
     }
-    
-    # ...spider implementation...
-```
-
-For enhanced security, you can store your API keys in environment variables:
-
-```bash
-# Set these environment variables before running your spider
-export ASKPABLOS_API_KEY="your-api-key-here"
-export ASKPABLOS_SECRET_KEY="your-secret-key-here"
+}
 ```
 
 ---
 
 ## Basic Usage
 
-AskPablosScrapyAPI only processes requests that include the `askpablos_api_map` in the request's `meta` dictionary. Requests without this configuration will follow the standard Scrapy processing path.
-
-### Example Spider:
+### Simple Browser Rendering
 
 ```python
 import scrapy
 
-class ExampleSpider(scrapy.Spider):
-    name = "example"
-    start_urls = ["https://example.com"]
+class MySpider(scrapy.Spider):
+    name = 'example'
     
     def start_requests(self):
-        for url in self.start_urls:
-            yield scrapy.Request(
-                url=url,
-                callback=self.parse,
-                meta={
-                    "askpablos_api_map": {
-                        "browser": True,          # Use headless browser
-                        "rotate_proxy": True      # Use rotating proxy IP
-                    }
+        yield scrapy.Request(
+            url='https://example.com',
+            meta={
+                "askpablos_api_map": {
+                    "browser": True,
+                    "rotate_proxy": True
                 }
-            )
+            },
+            callback=self.parse
+        )
     
     def parse(self, response):
         # Process the response normally
-        yield {
-            "title": response.css("title::text").get(),
-            "content": response.css("p::text").getall()
-        }
+        for item in response.css('.item'):
+            yield {
+                'title': item.css('h2::text').get(),
+                'description': item.css('p::text').get()
+            }
+```
+
+---
+
+## Advanced Usage
+
+### JavaScript Strategy Options
+
+The `js_strategy` parameter controls JavaScript execution:
+
+```python
+# Stealth mode - runs stealth script & minimal JS
+meta = {"askpablos_api_map": {"js_strategy": True}}
+
+# No JavaScript - faster for static content
+meta = {"askpablos_api_map": {"js_strategy": False}}
+
+# Default browser behavior
+meta = {"askpablos_api_map": {"js_strategy": "DEFAULT"}}
+```
+
+### Screenshot Capture
+
+```python
+def start_requests(self):
+    yield scrapy.Request(
+        url='https://example.com',
+        meta={
+            "askpablos_api_map": {
+                "browser": True,
+                "screenshot": True,
+                "js_strategy": "DEFAULT"
+            }
+        },
+        callback=self.parse_with_screenshot
+    )
+
+def parse_with_screenshot(self, response):
+    # Access screenshot data
+    screenshot = response.meta.get('screenshot')
+    if screenshot:
+        with open('page_screenshot.png', 'wb') as f:
+            f.write(screenshot)
+```
+
+### SPA (Single Page Application) Handling
+
+```python
+meta = {
+    "askpablos_api_map": {
+        "browser": True,
+        "wait_for_load": True,
+        "js_strategy": "DEFAULT"
+    }
+}
 ```
 
 ---
 
 ## Configuration Options
 
-The `askpablos_api_map` accepts the following parameters:
+### Meta Configuration Options
 
-| Parameter      | Type    | Default | Description                                                                                    |
-|----------------|---------|---------|------------------------------------------------------------------------------------------------|
-| `browser`      | Boolean | `False` | When `True`, uses a headless browser to render JavaScript and handle complex anti-bot measures |
-| `rotate_proxy` | Boolean | `False` | When `True`, routes the request through a rotating proxy to avoid IP-based rate limiting       |
+| Option          | Type     | Description                                            |
+|-----------------|----------|--------------------------------------------------------|
+| `browser`       | bool     | Use headless browser rendering                         |
+| `rotate_proxy`  | bool     | Use rotating proxy IP addresses                        |
+| `wait_for_load` | bool     | Wait for page to fully load (requires browser: True)   |
+| `screenshot`    | bool     | Take screenshot of the page (requires browser: True)   |
+| `js_strategy`   | bool/str | JavaScript execution strategy (requires browser: True) |
 
-Required configuration settings:
+**Important Note:** The options `wait_for_load`, `screenshot`, and `js_strategy` only work when `browser: True` is set. If browser rendering is disabled, these options will be ignored.
 
-| Option                   | Type   | Description                                 |
-|--------------------------|--------|---------------------------------------------|
-| `API_KEY`                | String | Your AskPablos API key                      |
-| `SECRET_KEY`             | String | Your AskPablos secret key                   |
-| `DOWNLOADER_MIDDLEWARES` | Dict   | Scrapy downloader middlewares configuration |
+### Settings.py Configuration
 
-Recommended optional settings:
-
-| Option        | Type    | Default | Description                                   |
-|---------------|---------|---------|-----------------------------------------------|
-| `TIMEOUT`     | Integer | 30      | Request timeout in seconds                    |
-| `MAX_RETRIES` | Integer | 2       | Maximum number of retries for failed requests |
-| `RETRY_DELAY` | Float   | 1.0     | Initial delay between retries in seconds      |
+| Setting       | Type | Default  | Description                |
+|---------------|------|----------|----------------------------|
+| `API_KEY`     | str  | Required | Your AskPablos API key     |
+| `SECRET_KEY`  | str  | Required | Your AskPablos secret key  |
+| `TIMEOUT`     | int  | 30       | Request timeout in seconds |
+| `MAX_RETRIES` | int  | 2        | Maximum retry attempts     |
 
 ---
 
 ## Best Practices
 
-1. **Resource Management**: Use the headless browser option only when necessary, as it consumes more resources
-2. **Rate Limiting**: Respect website ToS by setting appropriate delays between requests
-3. **Timeout Configuration**: Adjust `TIMEOUT` based on the target website's response time
-4. **Error Handling**: Add proper error handling for API unavailability scenarios
+1. **Use appropriate JavaScript strategies**:
+   - Use `"DEFAULT"` for normal websites
+   - Use `True` for stealth mode on protected sites
+   - Use `False` for static content to improve performance
 
-```python
-def errback_handler(self, failure):
-    self.logger.error(f"Request failed: {failure}")
-    # Implement retry logic or fallback behavior
-```
+2. **Configure timeouts appropriately**:
+   - Set reasonable `TIMEOUT` values in settings.py
+   - Consider page complexity when setting timeouts
+
+3. **Use screenshots for debugging**:
+   - Enable screenshots when troubleshooting
+   - Disable in production unless necessary
+
+4. **Optimize retry settings**:
+   - Configure `MAX_RETRIES` globally in settings.py
 
 ---
 
@@ -170,16 +208,7 @@ def errback_handler(self, failure):
 
 ### Common Issues
 
-1. **Authentication Errors**
-   - Ensure your API_KEY and SECRET_KEY are correct
-   - Check that your subscription is active
-
-2. **Timeout Errors**
-   - The target website might be slow to respond
-   - Consider increasing the request timeout settings
-
-3. **Empty Responses**
-   - Check if the target website has anti-bot measures that require additional configuration
-   - Try enabling the browser option for fully rendered pages
-
-For more help, check the [FAQ](faq.md) or open an issue on the [GitHub repository](https://github.com/fawadss1/askpablos-scrapy-api/issues).
+1. **Authentication Errors**: Verify your API_KEY and SECRET_KEY
+2. **Timeout Issues**: Increase TIMEOUT in settings.py
+3. **JavaScript Problems**: Try different js_strategy values
+4. **Rate Limiting**: Reduce concurrent requests in your spider
