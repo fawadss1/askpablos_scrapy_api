@@ -97,8 +97,9 @@ class AskPablosAPIDownloaderMiddleware:
         browser = proxy_cfg.get("browser", False)
         rotate_proxy = proxy_cfg.get("rotate_proxy", False)
 
-        # Get timeout from configuration
+        # Get timeout and max retries from configuration
         timeout = self.config.get('TIMEOUT')
+        max_retries = self.config.get('RETRIES')
 
         payload = {
             "url": request.url,
@@ -106,6 +107,7 @@ class AskPablosAPIDownloaderMiddleware:
             "browser": browser,
             "rotateProxy": rotate_proxy,
             "timeout": timeout,
+            "max_retries": max_retries,
         }
 
         try:
