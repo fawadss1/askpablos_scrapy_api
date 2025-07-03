@@ -1,11 +1,11 @@
 import logging
 from base64 import b64decode
+from typing import Optional
 
 import requests
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 from scrapy.exceptions import IgnoreRequest
-from typing import Optional
 import json
 
 from .auth import sign_request, create_auth_headers
@@ -44,18 +44,6 @@ class AskPablosAPIDownloaderMiddleware:
         TIMEOUT = 30  # Request timeout in seconds
         MAX_RETRIES = 2  # Maximum number of retries for failed requests
         RETRY_DELAY = 1.0  # Initial delay between retries in seconds
-
-    Example configuration in a spider:
-        custom_settings = {
-            "DOWNLOADER_MIDDLEWARES": {
-                "askpablos_scrapy_api.middleware.AskPablosAPIDownloaderMiddleware": 543,
-            },
-            "API_KEY": "your-api-key-here",
-            "SECRET_KEY": "your-secret-key-here",
-            "TIMEOUT": 30,
-            "MAX_RETRIES": 2,
-            "RETRY_DELAY": 1.0
-        }
     """
 
     def __init__(self, api_key, secret_key, config):
@@ -160,14 +148,16 @@ class AskPablosAPIDownloaderMiddleware:
 
             body = b64decode(html_body).decode()
 
+            updated_meta = request.meta.copy()
+            updated_meta['raw_api_response'] = proxy_response
+
             return HtmlResponse(
                 url=request.url,
                 body=body,
                 encoding="utf-8",
-                request=request,
+                request=request.replace(meta=updated_meta),
                 status=response.status_code,
-                flags=["askpablos-api"],
-                raw_response=proxy_response
+                flags=["askpablos-api"]
             )
 
         except requests.exceptions.Timeout:
