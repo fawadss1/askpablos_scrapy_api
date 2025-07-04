@@ -4,7 +4,7 @@ Operations handler for AskPablos Scrapy API.
 This module defines and validates configuration that can be used
 with the AskPablos API service.
 """
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, Any
 import logging
 
 logger = logging.getLogger('askpablos_scrapy_api')
@@ -33,11 +33,13 @@ class AskPablosAPIMapValidator:
         validated_config = {}
 
         # Browser option
+        browser_enabled = False
         if 'browser' in config:
             browser = config['browser']
             if not isinstance(browser, bool):
                 raise ValueError("'browser' must be a boolean")
             validated_config['browser'] = browser
+            browser_enabled = browser
 
         # Rotate proxy option
         if 'rotate_proxy' in config:
@@ -53,6 +55,12 @@ class AskPablosAPIMapValidator:
                 raise ValueError("'wait_for_load' must be a boolean")
             validated_config['wait_for_load'] = wait_for_load
 
+            if wait_for_load and not browser_enabled:
+                logger.error(
+                    "CONFIGURATION ERROR: 'wait_for_load': True requires 'browser': True to function properly. "
+                    "This attribute will be ignored without browser mode enabled."
+                )
+
         # JavaScript strategy
         if 'js_strategy' in config:
             js_strategy = config['js_strategy']
@@ -61,12 +69,24 @@ class AskPablosAPIMapValidator:
                 raise ValueError(f"'js_strategy' must be one of {valid_strategies}")
             validated_config['js_strategy'] = js_strategy
 
+            if not browser_enabled:
+                logger.error(
+                    f"CONFIGURATION ERROR: 'js_strategy': '{js_strategy}' requires 'browser': True to function properly. "
+                    "This attribute will be ignored without browser mode enabled."
+                )
+
         # Screenshot options
         if 'screenshot' in config:
             screenshot = config['screenshot']
             if not isinstance(screenshot, bool):
                 raise ValueError("'screenshot' must be a boolean")
             validated_config['screenshot'] = screenshot
+
+            if screenshot and not browser_enabled:
+                logger.error(
+                    "CONFIGURATION ERROR: 'screenshot': True requires 'browser': True to function properly. "
+                    "This attribute will be ignored without browser mode enabled."
+                )
 
         return validated_config
 
