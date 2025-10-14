@@ -1,11 +1,13 @@
 import logging
 from base64 import b64decode
 from typing import Optional
+import asyncio
 
-import requests
+import aiohttp
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 from scrapy.exceptions import IgnoreRequest
+from scrapy.utils.defer import deferred_from_coro
 import json
 
 from .auth import sign_request, create_auth_headers
@@ -21,6 +23,28 @@ from .exceptions import (
 
 # Configure logger
 logger = logging.getLogger('askpablos_scrapy_api')
+
+
+async def _async_post_request(url: str, data: str, headers: dict, timeout: int):
+    """
+    Make async POST request to AskPablos API.
+
+    This replaces the synchronous requests.post() call with async aiohttp.
+    Allows multiple requests to execute in parallel without blocking threads.
+    """
+    try:
+        timeout_obj = aiohttp.ClientTimeout(total=timeout)
+        async with aiohttp.ClientSession(timeout=timeout_obj) as session:
+            async with session.post(url, data=data, headers=headers) as response:
+                response_data = await response.json()
+                return {
+                    'status_code': response.status,
+                    'data': response_data
+                }
+    except aiohttp.ClientError as e:
+        raise ConnectionError(f"AskPablos API connection error: {str(e)}")
+    except asyncio.TimeoutError:
+        raise TimeoutError(f"AskPablos API request timed out")
 
 
 class AskPablosAPIDownloaderMiddleware:
@@ -65,7 +89,7 @@ class AskPablosAPIDownloaderMiddleware:
 
     @classmethod
     def from_crawler(cls, crawler):
-        """Create middleware instance from Scrapy crawler.
+        """Create a middleware instance from Scrapy crawler.
 
         Loads configuration from:
         1. Spider's custom_settings (if available)
@@ -90,15 +114,21 @@ class AskPablosAPIDownloaderMiddleware:
             config=config
         )
 
-    def process_request(self, request: Request, spider: Spider) -> Optional[HtmlResponse]:
-        """Process a Scrapy request."""
+    def process_request(self, request: Request, spider: Spider):
+        """Process a Scrapy request using an async/await pattern."""
         proxy_cfg = request.meta.get("askpablos_api_map")
 
         if not proxy_cfg or not isinstance(proxy_cfg, dict) or not proxy_cfg:
             return None  # Skip proxying
 
+        # Return a Twisted Deferred that wraps the async coroutine
+        return deferred_from_coro(self._async_process_request(request, spider))
+
+    async def _async_process_request(self, request: Request, spider: Spider) -> Optional[HtmlResponse]:
+        """Async implementation of request processing."""
         try:
             # Validate and normalize the configuration
+            proxy_cfg = request.meta.get("askpablos_api_map")
             validated_config = AskPablosAPIMapValidator.validate_config(proxy_cfg)
 
             # Create API payload with all the configuration
@@ -121,58 +151,16 @@ class AskPablosAPIDownloaderMiddleware:
             # Log sanitized payload for debugging
             logger.debug(f"AskPablos API: Sending request for URL: {request.url}")
 
-            # Make API request using the URL from constants
-            response = requests.post(
-                API_URL,
+            # Make async API request
+            api_response = await _async_post_request(
+                url=API_URL,
                 data=request_json,
                 headers=headers,
                 timeout=payload.get('timeout', self.config.get('TIMEOUT'))
             )
 
-            # Handle HTTP error status codes
-            if response.status_code != 200:
-                response_data = extract_response_data(response)
-                # Use factory function to create appropriate exception
-                error = handle_api_error(response.status_code, response_data)
-                spider.crawler.stats.inc_value(f"askpablos/errors/{error.__class__.__name__}")
-                raise error
-
-            # Parse response
-            try:
-                proxy_response = response.json()
-            except (ValueError, json.JSONDecodeError):
-                spider.crawler.stats.inc_value("askpablos/errors/json_decode")
-                raise json.JSONDecodeError(f"AskPablos API returned invalid JSON response for {request.url}", "", 0)
-
-            # Validate response content
-            html_body = proxy_response.get("responseBody", "")
-            if not html_body:
-                spider.crawler.stats.inc_value("askpablos/errors/empty_response")
-                raise ValueError(f"AskPablos API response missing required 'responseBody' field")
-
-            # Handle browser rendering errors
-            if validated_config.get("browser") and proxy_response.get("error"):
-                error_msg = proxy_response.get("error", "Unknown browser rendering error")
-                spider.crawler.stats.inc_value("askpablos/errors/browser_rendering")
-                raise BrowserRenderingError(error_msg, response=proxy_response)
-
-            body = b64decode(html_body).decode()
-
-            updated_meta = request.meta.copy()
-            updated_meta['raw_api_response'] = proxy_response
-
-            # Add additional response data to meta
-            if proxy_response.get("screenshot"):
-                updated_meta['screenshot'] = b64decode(proxy_response["screenshot"])
-
-            return HtmlResponse(
-                url=request.url,
-                body=body,
-                encoding="utf-8",
-                request=request.replace(meta=updated_meta),
-                status=proxy_response.get("statusCode", 200),
-                flags=["askpablos-api"]
-            )
+            # Handle the response
+            return self._handle_api_response(api_response, request, spider, validated_config)
 
         except json.JSONDecodeError:
             raise
@@ -182,17 +170,13 @@ class AskPablosAPIDownloaderMiddleware:
             logger.error(f"AskPablos API configuration error: {e}")
             raise IgnoreRequest(f"Invalid askpablos_api_map configuration: {e}")
 
-        except requests.exceptions.Timeout:
+        except asyncio.TimeoutError:
             spider.crawler.stats.inc_value("askpablos/errors/timeout")
             raise TimeoutError(f"AskPablos API request timed out for URL: {request.url}")
 
-        except requests.exceptions.ConnectionError as e:
+        except aiohttp.ClientError as e:
             spider.crawler.stats.inc_value("askpablos/errors/connection")
             raise ConnectionError(f"AskPablos API connection error for URL: {request.url} - {str(e)}")
-
-        except requests.exceptions.RequestException as e:
-            spider.crawler.stats.inc_value("askpablos/errors/request")
-            raise RuntimeError(f"AskPablos API request failed: {str(e)}")
 
         except AuthenticationError as e:
             # Critical authentication error - stop the spider immediately
@@ -201,7 +185,7 @@ class AskPablosAPIDownloaderMiddleware:
             logger.error(error_msg)
 
             # Use crawler's signal system to close the spider
-            spider.crawler.engine.close_spider(spider, error_msg)
+            await spider.crawler.engine.close_spider(spider, error_msg)
 
             # Raise IgnoreRequest to prevent this request from being processed further
             raise IgnoreRequest(error_msg)
@@ -213,3 +197,57 @@ class AskPablosAPIDownloaderMiddleware:
             logger.error(e)
             spider.crawler.stats.inc_value("askpablos/errors/unexpected")
             raise RuntimeError(f"AskPablos API encountered an unexpected error: {str(e)}")
+
+    @staticmethod
+    def _handle_api_response(api_response: dict, request: Request, spider: Spider, validated_config: dict):
+        """
+        Handle successful API response.
+        
+        This processes the response and creates HtmlResponse object.
+        """
+        status_code = api_response['status_code']
+        response_data = api_response['data']
+
+        # Handle HTTP errors
+        if status_code != 200:
+            # Use factory function to create appropriate exception
+            error = handle_api_error(status_code, response_data)
+            spider.crawler.stats.inc_value(f"askpablos/errors/{error.__class__.__name__}")
+            raise error
+
+        # Parse response
+        try:
+            proxy_response = response_data
+        except (ValueError, json.JSONDecodeError):
+            spider.crawler.stats.inc_value("askpablos/errors/json_decode")
+            raise json.JSONDecodeError(f"AskPablos API returned invalid JSON response for {request.url}", "", 0)
+
+        # Validate response content
+        html_body = proxy_response.get("responseBody", "")
+        if not html_body:
+            spider.crawler.stats.inc_value("askpablos/errors/empty_response")
+            raise ValueError(f"AskPablos API response missing required 'responseBody' field")
+
+        # Handle browser rendering errors
+        if validated_config.get("browser") and proxy_response.get("error"):
+            error_msg = proxy_response.get("error", "Unknown browser rendering error")
+            spider.crawler.stats.inc_value("askpablos/errors/browser_rendering")
+            raise BrowserRenderingError(error_msg, response=proxy_response)
+
+        body = b64decode(html_body).decode()
+
+        updated_meta = request.meta.copy()
+        updated_meta['raw_api_response'] = proxy_response
+
+        # Add additional response data to meta
+        if proxy_response.get("screenshot"):
+            updated_meta['screenshot'] = b64decode(proxy_response["screenshot"])
+
+        return HtmlResponse(
+            url=request.url,
+            body=body,
+            encoding="utf-8",
+            request=request.replace(meta=updated_meta),
+            status=proxy_response.get("statusCode", 200),
+            flags=["askpablos-api"]
+        )
