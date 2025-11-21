@@ -107,21 +107,8 @@ def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] =
             message = response_data['message']
 
     if status_code == 401 or status_code == 403:
-        return AuthenticationError(f"Authentication failed: {message}", status_code, response_data)
+        raise AuthenticationError(f"Authentication failed: {message}", status_code, response_data)
     elif status_code == 429:
-        return RateLimitError(message, status_code, response_data)
-    elif status_code == 408:
-        return TimeoutError(f"[{status_code}] Request timed out: {message}")
-    elif status_code == 400:
-        return ValueError(f"[{status_code}] Invalid configuration: {message}")
-    elif 400 <= status_code < 500:
-        # Other client errors
-        return ValueError(f"[{status_code}] Client error: {message}")
-    elif status_code == 502 or status_code == 504:
-        # Bad gateway or gateway timeout often related to proxy issues
-        return ConnectionError(f"[{status_code}] Proxy error: {message}")
-    elif 500 <= status_code < 600:
-        # Server errors
-        return RuntimeError(f"[{status_code}] Server error: {message}")
+        raise RateLimitError(message, status_code, response_data)
     else:
-        return AskPablosAPIError(message, status_code, response_data)
+        raise AskPablosAPIError(message, status_code, response_data)

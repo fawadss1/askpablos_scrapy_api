@@ -17,15 +17,14 @@ Usage:
 """
 
 from .middleware import AskPablosAPIDownloaderMiddleware
-from .version import __version__
-
-# Expose key components at package level for easy imports
 from .exceptions import (
     AskPablosAPIError,
     RateLimitError,
     BrowserRenderingError,
     handle_api_error,
 )
+
+__version__ = "0.4.0"
 
 # Define package exports explicitly
 __all__ = [

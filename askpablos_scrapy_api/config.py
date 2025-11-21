@@ -15,6 +15,8 @@ class Config:
     DEFAULT_TIMEOUT = 30
     DEFAULT_RETRIES = 2
 
+    API_URL = "http://10.10.10.178:7500/api/proxy/"
+
     def __init__(self):
         """Initialize an empty configuration."""
         self._settings = {}

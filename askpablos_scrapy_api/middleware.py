@@ -1,24 +1,25 @@
+import asyncio
+import json
 import logging
 from base64 import b64decode
 from typing import Optional
-import asyncio
 
 import aiohttp
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 from scrapy.exceptions import IgnoreRequest
 from scrapy.utils.defer import deferred_from_coro
-import json
 
 from .auth import sign_request, create_auth_headers
 from .config import Config
-from .endpoints import API_URL
-from .version import __version__
 from .utils import extract_response_data
 from .operations import AskPablosAPIMapValidator, create_api_payload
 from .exceptions import (
-    AskPablosAPIError, RateLimitError, AuthenticationError,
-    BrowserRenderingError, handle_api_error
+    AskPablosAPIError,
+    RateLimitError,
+    AuthenticationError,
+    BrowserRenderingError,
+    handle_api_error
 )
 
 # Configure logger
@@ -27,7 +28,7 @@ logger = logging.getLogger('askpablos_scrapy_api')
 
 async def _async_post_request(url: str, data: str, headers: dict, timeout: int):
     """
-    Make async POST request to AskPablos API.
+    Make an async POST request to AskPablos API.
 
     This replaces the synchronous requests.post() call with async aiohttp.
     Allows multiple requests to execute in parallel without blocking threads.
@@ -65,12 +66,12 @@ class AskPablosAPIDownloaderMiddleware:
     It will bypass any request that does not include the `askpablos_api_map` key or has it as an empty dict.
 
     Configuration (via settings.py or `custom_settings` in your spider):
-        API_KEY      = "<your API key>"
-        SECRET_KEY   = "<your secret key>"
+        API_KEY = "<your API key>"
+        SECRET_KEY = "<your secret key>"
 
     Optional settings:
-        TIMEOUT = 30  # Request timeout in seconds
-        MAX_RETRIES = 2  # Maximum number of retries for failed requests
+        TIMEOUT = 30 # Request timeout in seconds
+        MAX_RETRIES = 2 # Maximum number of retries for failed requests
     """
 
     def __init__(self, api_key, secret_key, config):
@@ -85,7 +86,6 @@ class AskPablosAPIDownloaderMiddleware:
         self.api_key = api_key
         self.secret_key = secret_key
         self.config = config
-        logger.debug(f"AskPablos Scrapy API initialized (version: {__version__})")
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -153,7 +153,7 @@ class AskPablosAPIDownloaderMiddleware:
 
             # Make async API request
             api_response = await _async_post_request(
-                url=API_URL,
+                url=self.config.API_URL,
                 data=request_json,
                 headers=headers,
                 timeout=payload.get('timeout', self.config.get('TIMEOUT'))
@@ -194,7 +194,6 @@ class AskPablosAPIDownloaderMiddleware:
             raise
 
         except Exception as e:
-            logger.error(e)
             spider.crawler.stats.inc_value("askpablos/errors/unexpected")
             raise RuntimeError(f"AskPablos API encountered an unexpected error: {str(e)}")
 

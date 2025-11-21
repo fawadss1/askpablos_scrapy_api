@@ -3,8 +3,9 @@ Utility functions for the AskPablos Scrapy API middleware.
 """
 import json
 import logging
-import requests
 from typing import Dict, Any
+
+import requests
 
 # Configure logger
 logger = logging.getLogger('askpablos_scrapy_api')
