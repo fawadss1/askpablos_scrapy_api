@@ -9,7 +9,6 @@ Welcome to AskPablos Scrapy API's documentation!
 
    pre_def/index
    pre_def/usage
-   pre_def/faq
    api
 
 Indices and tables
