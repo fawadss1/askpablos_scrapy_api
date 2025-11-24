@@ -84,16 +84,16 @@ class BrowserRenderingError(AskPablosAPIError):
     pass
 
 
-def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] = None) -> Exception:
+def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] = None) -> AskPablosAPIError:
     """
-    Factory function to create the appropriate exception based on status code.
+    Factory function to create and return the appropriate exception based on status code.
 
     Args:
         status_code: HTTP status code
         response_data: API response data if available
 
     Returns:
-        An appropriate Exception instance (built-in when possible)
+        An appropriate Exception instance.
     """
     message = "An error occurred with the AskPablos API"
 
@@ -107,8 +107,8 @@ def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] =
             message = response_data['message']
 
     if status_code == 401 or status_code == 403:
-        raise AuthenticationError(f"Authentication failed: {message}", status_code, response_data)
+        return AuthenticationError(f"Authentication failed: {message}", status_code, response_data)
     elif status_code == 429:
-        raise RateLimitError(message, status_code, response_data)
+        return RateLimitError(message, status_code, response_data)
     else:
-        raise AskPablosAPIError(message, status_code, response_data)
+        return AskPablosAPIError(message, status_code, response_data)

@@ -162,8 +162,6 @@ class AskPablosAPIDownloaderMiddleware:
             # Handle the response
             return self._handle_api_response(api_response, request, spider, validated_config)
 
-        except json.JSONDecodeError:
-            raise
         except ValueError as e:
             # Configuration validation error
             spider.crawler.stats.inc_value("askpablos/errors/config_validation")
@@ -180,7 +178,6 @@ class AskPablosAPIDownloaderMiddleware:
 
         except AuthenticationError as e:
             # Critical authentication error - stop the spider immediately
-            spider.crawler.stats.inc_value("askpablos/errors/authentication")
             error_msg = f"Authentication failed with AskPablos API: {str(e)}."
             logger.error(error_msg)
 
@@ -190,7 +187,7 @@ class AskPablosAPIDownloaderMiddleware:
             # Raise IgnoreRequest to prevent this request from being processed further
             raise IgnoreRequest(error_msg)
 
-        except (RateLimitError, BrowserRenderingError, AskPablosAPIError):
+        except (AskPablosAPIError, RateLimitError, BrowserRenderingError):
             raise
 
         except Exception as e:
@@ -209,7 +206,7 @@ class AskPablosAPIDownloaderMiddleware:
 
         # Handle HTTP errors
         if status_code != 200:
-            # Use factory function to create appropriate exception
+            # Use factory function to create the appropriate exception
             error = handle_api_error(status_code, response_data)
             spider.crawler.stats.inc_value(f"askpablos/errors/{error.__class__.__name__}")
             raise error
