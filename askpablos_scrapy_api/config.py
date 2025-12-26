@@ -15,7 +15,7 @@ class Config:
     DEFAULT_TIMEOUT = 30
     DEFAULT_RETRIES = 2
 
-    API_URL = "http://10.10.10.184:8000/api/proxy/"
+    API_URL = "https://appcloudy.askpablos.com/api/proxy/"
 
     def __init__(self):
         """Initialize an empty configuration."""
