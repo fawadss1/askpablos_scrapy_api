@@ -24,7 +24,7 @@ from .exceptions import (
     handle_api_error,
 )
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 # Define package exports explicitly
 __all__ = [
