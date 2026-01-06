@@ -44,6 +44,7 @@ API_KEY = "your_api_key"          # Your AskPablos API key
 SECRET_KEY = "your_secret_key"    # Your AskPablos secret key
 
 # Optional global settings
+APCLOUDY_URL = "https://domain.com"  # Base URL for AskPablos API (optional)
 TIMEOUT = 30          # Request timeout in seconds
 MAX_RETRIES = 2       # Maximum number of retries for failed requests
 
@@ -175,12 +176,13 @@ meta = {
 
 ### Settings.py Configuration
 
-| Setting       | Type | Default  | Description                |
-|---------------|------|----------|----------------------------|
-| `API_KEY`     | str  | Required | Your AskPablos API key     |
-| `SECRET_KEY`  | str  | Required | Your AskPablos secret key  |
-| `TIMEOUT`     | int  | 30       | Request timeout in seconds |
-| `MAX_RETRIES` | int  | 2        | Maximum retry attempts     |
+| Setting         | Type | Default                               | Description                               |
+|-----------------|------|---------------------------------------|-------------------------------------------|
+| `API_KEY`       | str  | Required                              | Your AskPablos API key                    |
+| `SECRET_KEY`    | str  | Required                              | Your AskPablos secret key                 |
+| `APCLOUDY_URL`  | str  | https://appcloudy.askpablos.com       | Base URL for AskPablos API                |
+| `TIMEOUT`       | int  | 30                                    | Request timeout in seconds                |
+| `MAX_RETRIES`   | int  | 2                                     | Maximum retry attempts                    |
 
 ---
 

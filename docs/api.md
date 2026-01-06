@@ -32,6 +32,7 @@ API_KEY = "your_api_key_here"
 SECRET_KEY = "your_secret_key_here"
 
 # Optional settings
+APCLOUDY_URL = "https://domain.com"  # Base URL for AskPablos API
 TIMEOUT = 30          # Request timeout in seconds
 MAX_RETRIES = 2       # Maximum number of retries for failed requests
 ```
