@@ -15,11 +15,10 @@ class Config:
     DEFAULT_TIMEOUT = 30
     DEFAULT_RETRIES = 2
 
-    API_URL = "https://appcloudy.askpablos.com/api/proxy/"
-
     def __init__(self):
         """Initialize an empty configuration."""
         self._settings = {}
+        self.API_URL = None
 
     def load_from_settings(self, settings: Dict[str, Any]) -> None:
         """Load configuration from Scrapy settings."""
@@ -29,6 +28,9 @@ class Config:
             'TIMEOUT': settings.get('TIMEOUT', self.DEFAULT_TIMEOUT),
             'RETRIES': settings.get('MAX_RETRIES', self.DEFAULT_RETRIES),
         }
+
+        base_url = settings.get('APCLOUDY_URL').rstrip('/')
+        self.API_URL = f"{base_url}/api/proxy/"
 
     def load_from_env(self) -> None:
         """Load configuration from environment variables."""
