@@ -7,7 +7,7 @@ from typing import Optional
 import aiohttp
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
-from scrapy.exceptions import IgnoreRequest
+from scrapy.exceptions import IgnoreRequest, CloseSpider
 from scrapy.utils.defer import deferred_from_coro
 
 from .auth import sign_request, create_auth_headers
@@ -86,6 +86,7 @@ class AskPablosAPIDownloaderMiddleware:
         self.api_key = api_key
         self.secret_key = secret_key
         self.config = config
+        self._spider_closing = False
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -116,6 +117,10 @@ class AskPablosAPIDownloaderMiddleware:
 
     def process_request(self, request: Request, spider: Spider):
         """Process a Scrapy request using an async/await pattern."""
+        # If spider is closing, silently drop requests without logging
+        if self._spider_closing:
+            raise IgnoreRequest()
+
         proxy_cfg = request.meta.get("askpablos_api_map")
 
         if not proxy_cfg or not isinstance(proxy_cfg, dict) or not proxy_cfg:
@@ -176,18 +181,16 @@ class AskPablosAPIDownloaderMiddleware:
             spider.crawler.stats.inc_value("askpablos/errors/connection")
             raise ConnectionError(f"AskPablos API connection error for URL: {request.url} - {str(e)}")
 
-        except AuthenticationError as e:
-            # Critical authentication error - stop the spider immediately
-            error_msg = f"Authentication failed with AskPablos API: {str(e)}."
-            logger.error(error_msg)
+        except (AuthenticationError, RateLimitError) as e:
+            # Set the flag immediately to prevent other concurrent requests
+            if not self._spider_closing:
+                self._spider_closing = True
+                spider.crawler.stats.inc_value("askpablos/errors/critical")
+                raise
+            else:
+                raise IgnoreRequest()
 
-            # Use crawler's signal system to close the spider
-            await spider.crawler.engine.close_spider(spider, error_msg)
-
-            # Raise IgnoreRequest to prevent this request from being processed further
-            raise IgnoreRequest(error_msg)
-
-        except (AskPablosAPIError, RateLimitError, BrowserRenderingError):
+        except (AskPablosAPIError, BrowserRenderingError):
             raise
 
         except Exception as e:

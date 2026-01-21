@@ -53,10 +53,12 @@ class AuthenticationError(AskPablosAPIError):
 class RateLimitError(AskPablosAPIError):
     """
     Raised when the API rate limit is exceeded.
+    This is a critical error that should stop the spider.
     """
 
     def __init__(self, message: str, status_code: Optional[int] = None, response: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code, response)
+        self.is_critical = True
 
         # Extract rate limit information if available
         self.reset_time = None

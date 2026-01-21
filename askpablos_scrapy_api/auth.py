@@ -23,7 +23,7 @@ def sign_request(payload: Dict[str, Any], secret_key: str) -> Tuple[str, str]:
         Tuple containing the (JSON payload string, base64-encoded signature)
     """
     # Ensure consistent serialization by specifying separators
-    request_json = json.dumps(payload, separators=(',', ':'))
+    request_json = json.dumps(payload, separators=(',', ':'), sort_keys=True)
 
     # Create HMAC-SHA256 signature
     signature = hmac.new(
