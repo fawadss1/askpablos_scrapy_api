@@ -43,9 +43,9 @@ async def _async_post_request(url: str, data: str, headers: dict, timeout: int):
                     'data': response_data
                 }
     except aiohttp.ClientError as e:
-        raise ConnectionError(f"AskPablos API connection error: {str(e)}")
+        raise ConnectionError(f"AskPablos API connection error: {str(e)}") from None
     except asyncio.TimeoutError:
-        raise TimeoutError(f"AskPablos API request timed out")
+        raise TimeoutError(f"AskPablos API request timed out") from None
 
 
 class AskPablosAPIDownloaderMiddleware:
@@ -161,7 +161,7 @@ class AskPablosAPIDownloaderMiddleware:
                 url=self.config.API_URL,
                 data=request_json,
                 headers=headers,
-                timeout=payload.get('timeout', self.config.get('TIMEOUT'))
+                timeout=payload.get('timeout')
             )
 
             # Handle the response
@@ -171,15 +171,15 @@ class AskPablosAPIDownloaderMiddleware:
             # Configuration validation error
             spider.crawler.stats.inc_value("askpablos/errors/config_validation")
             logger.error(f"AskPablos API configuration error: {e}")
-            raise IgnoreRequest(f"Invalid askpablos_api_map configuration: {e}")
+            raise IgnoreRequest(f"Invalid askpablos_api_map configuration: {e}") from None
 
-        except asyncio.TimeoutError:
+        except TimeoutError as e:
             spider.crawler.stats.inc_value("askpablos/errors/timeout")
-            raise TimeoutError(f"AskPablos API request timed out for URL: {request.url}")
+            raise TimeoutError(f"AskPablos API request timed out for URL: {request.url}") from None
 
-        except aiohttp.ClientError as e:
+        except ConnectionError as e:
             spider.crawler.stats.inc_value("askpablos/errors/connection")
-            raise ConnectionError(f"AskPablos API connection error for URL: {request.url} - {str(e)}")
+            raise ConnectionError(f"AskPablos API connection error for URL: {request.url} - {str(e)}") from None
 
         except (AuthenticationError, RateLimitError) as e:
             # Set the flag immediately to prevent other concurrent requests
@@ -188,14 +188,14 @@ class AskPablosAPIDownloaderMiddleware:
                 spider.crawler.stats.inc_value("askpablos/errors/critical")
                 raise
             else:
-                raise IgnoreRequest()
+                raise IgnoreRequest() from None
 
         except (AskPablosAPIError, BrowserRenderingError):
             raise
 
         except Exception as e:
             spider.crawler.stats.inc_value("askpablos/errors/unexpected")
-            raise RuntimeError(f"AskPablos API encountered an unexpected error: {str(e)}")
+            raise RuntimeError(f"AskPablos API encountered an unexpected error: {str(e)}") from None
 
     @staticmethod
     def _handle_api_response(api_response: dict, request: Request, spider: Spider, validated_config: dict):
