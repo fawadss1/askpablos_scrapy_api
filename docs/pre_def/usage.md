@@ -74,14 +74,14 @@ meta = {
 
 ## Basic Usage
 
-### Simple Browser Rendering
+### Simple GET Request with Browser Rendering
 
 ```python
 import scrapy
 
 class MySpider(scrapy.Spider):
     name = 'example'
-    
+
     def start_requests(self):
         yield scrapy.Request(
             url='https://example.com',
@@ -93,7 +93,7 @@ class MySpider(scrapy.Spider):
             },
             callback=self.parse
         )
-    
+
     def parse(self, response):
         # Process the response normally
         for item in response.css('.item'):
@@ -101,6 +101,49 @@ class MySpider(scrapy.Spider):
                 'title': item.css('h2::text').get(),
                 'description': item.css('p::text').get()
             }
+```
+
+### POST Request Support
+
+```python
+import scrapy
+import json
+
+class MySpider(scrapy.Spider):
+    name = 'example'
+
+    def start_requests(self):
+        # Using FormRequest for POST requests
+        yield scrapy.FormRequest(
+            url='https://api.example.com/endpoint',
+            formdata={'key': 'value'},
+            meta={
+                "askpablos_api_map": {
+                    "browser": True,
+                    "rotate_proxy": True
+                }
+            },
+            callback=self.parse
+        )
+
+        # Or using Request with method='POST' and JSON body
+        yield scrapy.Request(
+            url='https://api.example.com/endpoint',
+            method='POST',
+            body=json.dumps({'key': 'value'}),
+            headers={'Content-Type': 'application/json'},
+            meta={
+                "askpablos_api_map": {
+                    "rotate_proxy": True
+                }
+            },
+            callback=self.parse
+        )
+
+    def parse(self, response):
+        # Process the response
+        data = response.json()
+        yield {'result': data}
 ```
 
 ---

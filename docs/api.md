@@ -22,6 +22,13 @@ meta = {
 }
 ```
 
+### HTTP Method Support
+
+The middleware automatically supports both GET and POST HTTP methods:
+
+- **GET requests**: Standard Scrapy requests are processed as GET by default
+- **POST requests**: When using Scrapy FormRequest or setting `method='POST'`, the request body is automatically included in the API payload
+
 ### Settings Configuration
 
 Global settings must be configured in `settings.py`:
