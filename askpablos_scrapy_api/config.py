@@ -4,7 +4,6 @@ Configuration management module for AskPablos Scrapy API.
 This module provides utilities for securely loading and validating
 configuration settings from environment variables and settings files.
 """
-import os
 from typing import Any, Dict, Optional
 
 
@@ -31,20 +30,6 @@ class Config:
 
         base_url = settings.get('APCLOUDY_URL').rstrip('/')
         self.API_URL = f"{base_url}/api/proxy/"
-
-    def load_from_env(self) -> None:
-        """Load configuration from environment variables."""
-        if 'ASKPABLOS_API_KEY' in os.environ:
-            self._settings['API_KEY'] = os.environ['ASKPABLOS_API_KEY']
-
-        if 'ASKPABLOS_SECRET_KEY' in os.environ:
-            self._settings['SECRET_KEY'] = os.environ['ASKPABLOS_SECRET_KEY']
-
-        if 'TIMEOUT' in os.environ:
-            self._settings['TIMEOUT'] = int(os.environ['TIMEOUT'])
-
-        if 'MAX_RETRIES' in os.environ:
-            self._settings['RETRIES'] = int(os.environ['MAX_RETRIES'])
 
     def validate(self) -> None:
         """Validate that all required configuration is present."""

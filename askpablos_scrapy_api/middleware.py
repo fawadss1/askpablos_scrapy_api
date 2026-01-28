@@ -7,12 +7,11 @@ from typing import Optional
 import aiohttp
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
-from scrapy.exceptions import IgnoreRequest, CloseSpider
+from scrapy.exceptions import IgnoreRequest
 from scrapy.utils.defer import deferred_from_coro
 
 from .auth import sign_request, create_auth_headers
 from .config import Config
-from .utils import extract_response_data
 from .operations import AskPablosAPIMapValidator, create_api_payload
 from .exceptions import (
     AskPablosAPIError,
@@ -40,7 +39,8 @@ async def _async_post_request(url: str, data: str, headers: dict, timeout: int):
                 response_data = await response.json()
                 return {
                     'status_code': response.status,
-                    'data': response_data
+                    'data': response_data,
+                    'headers': dict(response.headers),
                 }
     except aiohttp.ClientError as e:
         raise ConnectionError(f"AskPablos API connection error: {str(e)}") from None
@@ -100,7 +100,6 @@ class AskPablosAPIDownloaderMiddleware:
         # Load configuration
         config = Config()
         config.load_from_settings(crawler.settings)
-        config.load_from_env()
 
         try:
             config.validate()
@@ -148,6 +147,13 @@ class AskPablosAPIDownloaderMiddleware:
                 payload['timeout'] = self.config.get('TIMEOUT')
             if 'maxRetries' not in payload:
                 payload['maxRetries'] = self.config.get('RETRIES')
+
+            if request.method != "GET" and "body" not in payload:
+                req_bdy = request.body.decode()
+                if isinstance(req_bdy, str):
+                    payload['body'] = json.loads(req_bdy)
+                elif isinstance(req_bdy, dict):
+                    payload['body'] = req_bdy
 
             # Sign the request using auth module
             request_json, signature_b64 = sign_request(payload, self.secret_key)
@@ -244,9 +250,10 @@ class AskPablosAPIDownloaderMiddleware:
 
         return HtmlResponse(
             url=request.url,
+            headers=api_response.get("headers"),
             body=body,
             encoding="utf-8",
             request=request.replace(meta=updated_meta),
-            status=proxy_response.get("statusCode", 200),
+            status=status_code,
             flags=["askpablos-api"]
         )
