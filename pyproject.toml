@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "askpablos-scrapy-api"
-version = "0.4.5"
+version = "0.4.6"
 description = "A professional Scrapy integration for seamlessly routing requests through AskPablos Proxy API with support for headless browser rendering and rotating IP addresses"
 authors = [
     { name = "Fawad Ali", email = "fawadstar6@gmail.com" }
