@@ -60,6 +60,7 @@ class AskPablosAPIDownloaderMiddleware:
                 "wait_for_load": True,    # Optional: Wait for page load (requires browser: True)
                 "screenshot": True,       # Optional: Take screenshot (requires browser: True)
                 "js_strategy": "DEFAULT", # Optional: JavaScript strategy (requires browser: True)
+                "operations": [...]       # Optional: Browser operations (auto-enables browser: True)
             }
         }
 

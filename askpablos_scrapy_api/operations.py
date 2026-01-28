@@ -7,6 +7,15 @@ with the AskPablos API service.
 from typing import Dict, Any
 import logging
 
+from .utils import (
+    validate_browser,
+    validate_rotate_proxy,
+    validate_wait_for_load,
+    validate_js_strategy,
+    validate_screenshot,
+    validate_operations
+)
+
 logger = logging.getLogger('askpablos_scrapy_api')
 
 
@@ -32,61 +41,15 @@ class AskPablosAPIMapValidator:
 
         validated_config = {}
 
-        # Browser option
-        browser_enabled = False
-        if 'browser' in config:
-            browser = config['browser']
-            if not isinstance(browser, bool):
-                raise ValueError("'browser' must be a boolean")
-            validated_config['browser'] = browser
-            browser_enabled = browser
+        # Validate browser option first (required by other options)
+        browser_enabled = validate_browser(config, validated_config)
 
-        # Rotate proxy option
-        if 'rotate_proxy' in config:
-            rotate_proxy = config['rotate_proxy']
-            if not isinstance(rotate_proxy, bool):
-                raise ValueError("'rotate_proxy' must be a boolean")
-            validated_config['rotate_proxy'] = rotate_proxy
-
-        # Wait for page load
-        if 'wait_for_load' in config:
-            wait_for_load = config['wait_for_load']
-            if not isinstance(wait_for_load, bool):
-                raise ValueError("'wait_for_load' must be a boolean")
-            validated_config['wait_for_load'] = wait_for_load
-
-            if wait_for_load and not browser_enabled:
-                logger.error(
-                    "CONFIGURATION ERROR: 'wait_for_load': True requires 'browser': True to function properly. "
-                    "This attribute will be ignored without browser mode enabled."
-                )
-
-        # JavaScript strategy
-        if 'js_strategy' in config:
-            js_strategy = config['js_strategy']
-            valid_strategies = [True, False, "DEFAULT"]
-            if js_strategy not in valid_strategies:
-                raise ValueError(f"'js_strategy' must be one of {valid_strategies}")
-            validated_config['js_strategy'] = js_strategy
-
-            if not browser_enabled:
-                logger.error(
-                    f"CONFIGURATION ERROR: 'js_strategy': '{js_strategy}' requires 'browser': True to function properly. "
-                    "This attribute will be ignored without browser mode enabled."
-                )
-
-        # Screenshot options
-        if 'screenshot' in config:
-            screenshot = config['screenshot']
-            if not isinstance(screenshot, bool):
-                raise ValueError("'screenshot' must be a boolean")
-            validated_config['screenshot'] = screenshot
-
-            if screenshot and not browser_enabled:
-                logger.error(
-                    "CONFIGURATION ERROR: 'screenshot': True requires 'browser': True to function properly. "
-                    "This attribute will be ignored without browser mode enabled."
-                )
+        # Validate all other options
+        validate_rotate_proxy(config, validated_config)
+        validate_wait_for_load(config, validated_config, browser_enabled)
+        validate_js_strategy(config, validated_config, browser_enabled)
+        validate_screenshot(config, validated_config, browser_enabled)
+        validate_operations(config, validated_config, browser_enabled)
 
         return validated_config
 
@@ -112,7 +75,7 @@ def create_api_payload(request_url: str, request_method: str, config: Dict[str, 
 
     # Add optional fields if present
     optional_fields = [
-        'wait_for_load', 'js_strategy', 'screenshot'
+        'wait_for_load', 'js_strategy', 'screenshot', 'operations'
     ]
 
     for field in optional_fields:
@@ -125,6 +88,8 @@ def create_api_payload(request_url: str, request_method: str, config: Dict[str, 
                 api_field = 'jsStrategy'
             elif field == 'screenshot':
                 api_field = 'screenshot'
+            elif field == 'operations':
+                api_field = 'operations'
 
             payload[api_field] = config[field]
 
