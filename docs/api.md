@@ -18,6 +18,7 @@ meta = {
         "wait_for_load": True,    # Optional: Wait for page load (requires browser: True)
         "screenshot": True,       # Optional: Take screenshot (requires browser: True)
         "js_strategy": "DEFAULT", # Optional: JavaScript strategy (requires browser: True)
+        "operations": [...]       # Optional: Browser operations for SPA interaction (requires browser: True)
     }
 }
 ```
@@ -61,6 +62,37 @@ The operations module handles configuration validation and API payload creation 
 - `True` - Runs stealth script & runs minimal JS
 - `False` - No stealth injection and not rendering JS of current page
 - `"DEFAULT"` - Behave normal site as in browser
+
+### Browser Operations for SPA Interaction
+
+The `operations` parameter allows you to define advanced browser interactions for Single Page Applications:
+
+```python
+"operations": [
+    {
+        "task": "waitForElement",
+        "match": {
+            "on": "xpath",      # or "css"
+            "rule": "visible",  # or "attached", "hidden", "detached"
+            "value": "//*[@id='element']"
+        },
+        "maxWait": 30,          # Optional: seconds to wait (default: 30)
+        "onFailure": "return"   # Optional: "continue", "return", or "throw"
+    }
+]
+```
+
+**Supported Tasks:**
+- `waitForElement` - Wait for an element to match the specified condition
+
+**Match Options:**
+- `on`: Selector type - `"xpath"` or `"css"`
+- `rule`: Element state - `"visible"`, `"attached"`, `"hidden"`, or `"detached"`
+- `value`: The selector string (XPath or CSS selector)
+
+**Optional Parameters:**
+- `maxWait`: Maximum time to wait in seconds (must be > 0)
+- `onFailure`: Action on failure - `"continue"` (ignore and continue), `"return"` (stop and return), or `"throw"` (raise error)
 
 ```{eval-rst}
 .. automodule:: askpablos_scrapy_api.operations

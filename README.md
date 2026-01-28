@@ -15,6 +15,7 @@ Full documentation is available at: [https://askpablos-scrapy-api.readthedocs.io
 - 🔄 **Rotating Proxies**: Access to a pool of rotating IP addresses
 - 🧠 **JavaScript Strategies**: Three modes for different scraping scenarios
 - 📸 **Screenshot Capture**: Take screenshots
+- 🎯 **SPA Operations**: Advanced browser operations for interacting with Single Page Applications (wait for elements, click actions, etc.)
 - 📮 **POST Request Support**: Seamlessly handle both GET and POST requests with automatic body inclusion
 - 🔒 **Secure Authentication**: HMAC-SHA256 request signing
 - 🔁 **Automatic Retries**: Configurable retry logic

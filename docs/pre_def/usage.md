@@ -62,10 +62,11 @@ Configure individual requests using the `askpablos_api_map` in request meta:
 meta = {
     "askpablos_api_map": {
         "browser": True,          # Use headless browser
-        "rotate_proxy": True,     # Rotate proxy IPs  
+        "rotate_proxy": True,     # Rotate proxy IPs
         "wait_for_load": True,    # Wait for page load (requires browser: True)
         "screenshot": True,       # Take screenshot (requires browser: True)
         "js_strategy": "DEFAULT", # JavaScript strategy (requires browser: True)
+        "operations": [...]       # Browser operations for SPA interaction (requires browser: True)
     }
 }
 ```
@@ -191,12 +192,103 @@ def parse_with_screenshot(self, response):
 
 ### SPA (Single Page Application) Handling
 
+#### Basic SPA Support
+
 ```python
 meta = {
     "askpablos_api_map": {
         "browser": True,
         "wait_for_load": True,
         "js_strategy": "DEFAULT"
+    }
+}
+```
+
+#### Advanced SPA Interaction with Operations
+
+For more complex SPAs that require waiting for specific elements or performing actions:
+
+```python
+def start_requests(self):
+    yield scrapy.Request(
+        url='https://spa-example.com',
+        meta={
+            "askpablos_api_map": {
+                "browser": True,
+                "js_strategy": "DEFAULT",
+                "operations": [
+                    {
+                        "task": "waitForElement",
+                        "match": {
+                            "on": "xpath",
+                            "rule": "visible",
+                            "value": "//*[@id='content-loaded']"
+                        },
+                        "maxWait": 10,
+                        "onFailure": "return"
+                    }
+                ]
+            }
+        },
+        callback=self.parse_spa
+    )
+
+def parse_spa(self, response):
+    # The page has waited for the element to be visible
+    data = response.css('.dynamic-content::text').getall()
+    yield {'data': data}
+```
+
+**Operations Parameters:**
+
+- **task**: Action to perform
+  - `waitForElement` - Wait for element to match condition
+
+- **match**: Element matching criteria
+  - `on`: `"xpath"` or `"css"` - Selector type
+  - `rule`: Element state to wait for
+    - `"visible"` - Element is visible on page
+    - `"attached"` - Element exists in DOM
+    - `"hidden"` - Element exists but is hidden
+    - `"detached"` - Element is removed from DOM
+  - `value`: Selector string (XPath or CSS selector)
+
+- **maxWait** (optional): Maximum seconds to wait (must be > 0)
+- **onFailure** (optional): Action when operation fails
+  - `"continue"` - Ignore failure and continue
+  - `"return"` - Stop operations and return page
+  - `"throw"` - Raise an error
+
+#### Multiple Operations Example
+
+You can chain multiple operations:
+
+```python
+meta = {
+    "askpablos_api_map": {
+        "browser": True,
+        "operations": [
+            {
+                "task": "waitForElement",
+                "match": {
+                    "on": "css",
+                    "rule": "visible",
+                    "value": "#login-form"
+                },
+                "maxWait": 5,
+                "onFailure": "throw"
+            },
+            {
+                "task": "waitForElement",
+                "match": {
+                    "on": "xpath",
+                    "rule": "visible",
+                    "value": "//div[@class='content-loaded']"
+                },
+                "maxWait": 15,
+                "onFailure": "return"
+            }
+        ]
     }
 }
 ```
@@ -214,8 +306,9 @@ meta = {
 | `wait_for_load` | bool     | Wait for page to fully load (requires browser: True)   |
 | `screenshot`    | bool     | Take screenshot of the page (requires browser: True)   |
 | `js_strategy`   | bool/str | JavaScript execution strategy (requires browser: True) |
+| `operations`    | list     | Browser operations for SPA interaction (requires browser: True) |
 
-**Important Note:** The options `wait_for_load`, `screenshot`, and `js_strategy` only work when `browser: True` is set. If browser rendering is disabled, these options will be ignored.
+**Important Note:** The options `wait_for_load`, `screenshot`, `js_strategy`, and `operations` only work when `browser: True` is set. If browser rendering is disabled, these options will be ignored.
 
 ### Settings.py Configuration
 
