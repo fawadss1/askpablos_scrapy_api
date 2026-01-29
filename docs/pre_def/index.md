@@ -9,6 +9,7 @@ A professional Scrapy integration for seamlessly routing requests through AskPab
 - 🔄 **Rotating Proxies**: Access to a pool of rotating IP addresses
 - 🧠 **JavaScript Strategies**: Three modes for different scraping scenarios
 - 📸 **Screenshot Capture**: Take screenshots
+- 🎯 **SPA Operations**: Advanced browser operations for interacting with Single Page Applications
 - 🔒 **Secure Authentication**: HMAC-SHA256 request signing
 - 🔁 **Automatic Retries**: Configurable retry logic
 - ⚠️ **Comprehensive Error Handling**: Detailed logging and error reporting
@@ -84,8 +85,9 @@ class MySpider(scrapy.Spider):
 | `wait_for_load` | bool     | Wait for page to fully load (requires browser: True)   |
 | `screenshot`    | bool     | Take screenshot of the page (requires browser: True)   |
 | `js_strategy`   | bool/str | JavaScript execution strategy (requires browser: True) |
+| `operations`    | list     | Browser operations for SPA interaction (requires browser: True) |
 
-**Important Note:** The options `wait_for_load`, `screenshot`, and `js_strategy` only work when `browser: True` is set.
+**Important Note:** The options `wait_for_load`, `screenshot`, `js_strategy`, and `operations` only work when `browser: True` is set.
 
 ### JavaScript Strategies
 
@@ -116,6 +118,8 @@ Requests without the `askpablos_api_map` configuration bypass the processing ent
 
 ## Advanced Configuration
 
+### All Available Options
+
 ```python
 # Request with all available options
 yield scrapy.Request(
@@ -125,11 +129,54 @@ yield scrapy.Request(
         'askpablos_api_map': {
             'browser': True,  # Use headless browser
             'rotate_proxy': True,  # Use rotating proxy
-            'timeout': 60  # Custom timeout for this request only
+            'screenshot': True,  # Take screenshot
+            'js_strategy': 'DEFAULT',  # JavaScript strategy
+            'wait_for_load': True,  # Wait for page load
         }
     }
 )
 ```
+
+### SPA Interaction with Operations
+
+For Single Page Applications that require waiting for specific elements:
+
+```python
+import scrapy
+
+class MySPASpider(scrapy.Spider):
+    name = 'spa_example'
+
+    def start_requests(self):
+        yield scrapy.Request(
+            url='https://spa-example.com',
+            meta={
+                "askpablos_api_map": {
+                    "browser": True,
+                    "operations": [
+                        {
+                            "task": "waitForElement",
+                            "match": {
+                                "on": "xpath",  # or "css"
+                                "rule": "visible",  # or "attached", "hidden", "detached"
+                                "value": "//*[@id='content-loaded']"
+                            },
+                            "maxWait": 10,
+                            "onFailure": "return"  # or "continue", "throw"
+                        }
+                    ]
+                }
+            },
+            callback=self.parse
+        )
+
+    def parse(self, response):
+        # Element has loaded before parsing
+        data = response.css('.dynamic-content::text').getall()
+        yield {'data': data}
+```
+
+See the [Detailed Usage Guide](usage.md) for more examples and complete documentation.
 
 ## Contributing
 
