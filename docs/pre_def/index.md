@@ -7,7 +7,7 @@ A professional Scrapy integration for seamlessly routing requests through AskPab
 - 🔄 **Selective Proxying**: Only routes requests with `askpablos_api_map` in their meta
 - 🌐 **Headless Browser Support**: Render JavaScript-heavy pages
 - 🔄 **Rotating Proxies**: Access to a pool of rotating IP addresses
-- 🧠 **JavaScript Strategies**: Three modes for different scraping scenarios
+- 🧠 **JavaScript Rendering**: Render JavaScript-heavy pages
 - 📸 **Screenshot Capture**: Take screenshots
 - 🎯 **SPA Operations**: Advanced browser operations for interacting with Single Page Applications
 - 🔒 **Secure Authentication**: HMAC-SHA256 request signing
@@ -66,9 +66,7 @@ class MySpider(scrapy.Spider):
             url='https://example.com',
             meta={
                 "askpablos_api_map": {
-                    "browser": True,
-                    "rotate_proxy": True,
-                    "js_strategy": "DEFAULT"
+                    "browser": True
                 }
             }
         )
@@ -81,19 +79,10 @@ class MySpider(scrapy.Spider):
 | Option          | Type     | Description                                            |
 |-----------------|----------|--------------------------------------------------------|
 | `browser`       | bool     | Use headless browser rendering                         |
-| `rotate_proxy`  | bool     | Use rotating proxy IP addresses                        |
-| `wait_for_load` | bool     | Wait for page to fully load (requires browser: True)   |
 | `screenshot`    | bool     | Take screenshot of the page (requires browser: True)   |
-| `js_strategy`   | bool/str | JavaScript execution strategy (requires browser: True) |
 | `operations`    | list     | Browser operations for SPA interaction (requires browser: True) |
 
-**Important Note:** The options `wait_for_load`, `screenshot`, `js_strategy`, and `operations` only work when `browser: True` is set.
-
-### JavaScript Strategies
-
-- `True` - Runs stealth script & minimal JS
-- `False` - No stealth injection, no JS rendering
-- `"DEFAULT"` - Normal browser behavior
+**Important Note:** The options `screenshot` and `operations` only work when `browser: True` is set.
 
 ## Environment Variables
 
@@ -128,10 +117,7 @@ yield scrapy.Request(
     meta={
         'askpablos_api_map': {
             'browser': True,  # Use headless browser
-            'rotate_proxy': True,  # Use rotating proxy
             'screenshot': True,  # Take screenshot
-            'js_strategy': 'DEFAULT',  # JavaScript strategy
-            'wait_for_load': True,  # Wait for page load
         }
     }
 )

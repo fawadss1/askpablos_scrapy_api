@@ -14,10 +14,7 @@ The middleware accepts the following configuration in request meta:
 meta = {
     "askpablos_api_map": {
         "browser": True,          # Optional: Use headless browser
-        "rotate_proxy": True,     # Optional: Use rotating proxy IP
-        "wait_for_load": True,    # Optional: Wait for page load (requires browser: True)
         "screenshot": True,       # Optional: Take screenshot (requires browser: True)
-        "js_strategy": "DEFAULT", # Optional: JavaScript strategy (requires browser: True)
         "operations": [...]       # Optional: Browser operations for SPA interaction (requires browser: True)
     }
 }
@@ -56,12 +53,6 @@ MAX_RETRIES = 2       # Maximum number of retries for failed requests
 ## Operations Module
 
 The operations module handles configuration validation and API payload creation for enhanced features.
-
-### JavaScript Strategy Options
-
-- `True` - Runs stealth script & runs minimal JS
-- `False` - No stealth injection and not rendering JS of current page
-- `"DEFAULT"` - Behave normal site as in browser
 
 ### Browser Operations for SPA Interaction
 
