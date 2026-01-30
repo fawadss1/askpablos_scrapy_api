@@ -9,9 +9,6 @@ import logging
 
 from .utils import (
     validate_browser,
-    validate_rotate_proxy,
-    validate_wait_for_load,
-    validate_js_strategy,
     validate_screenshot,
     validate_operations
 )
@@ -45,9 +42,6 @@ class AskPablosAPIMapValidator:
         browser_enabled = validate_browser(config, validated_config)
 
         # Validate all other options
-        validate_rotate_proxy(config, validated_config)
-        validate_wait_for_load(config, validated_config, browser_enabled)
-        validate_js_strategy(config, validated_config, browser_enabled)
         validate_screenshot(config, validated_config, browser_enabled)
         validate_operations(config, validated_config, browser_enabled)
 
@@ -70,27 +64,15 @@ def create_api_payload(request_url: str, request_method: str, config: Dict[str, 
         "url": request_url,
         "method": request_method,
         "browser": config.get("browser", False),
-        "rotateProxy": config.get("rotate_proxy", False),
     }
 
     # Add optional fields if present
     optional_fields = [
-        'wait_for_load', 'js_strategy', 'screenshot', 'operations'
+        'screenshot', 'operations'
     ]
 
     for field in optional_fields:
         if field in config:
-            # Convert snake_case to camelCase for API
-            api_field = field
-            if field == 'wait_for_load':
-                api_field = 'waitForLoad'
-            elif field == 'js_strategy':
-                api_field = 'jsStrategy'
-            elif field == 'screenshot':
-                api_field = 'screenshot'
-            elif field == 'operations':
-                api_field = 'operations'
-
-            payload[api_field] = config[field]
+            payload[field] = config[field]
 
     return payload
