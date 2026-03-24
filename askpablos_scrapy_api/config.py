@@ -5,6 +5,7 @@ This module provides utilities for securely loading and validating
 configuration settings from environment variables and settings files.
 """
 from typing import Any, Dict, Optional
+from urllib.parse import urljoin
 
 
 class Config:
@@ -28,8 +29,8 @@ class Config:
             'RETRIES': settings.get('MAX_RETRIES', self.DEFAULT_RETRIES),
         }
 
-        base_url = settings.get('APCLOUDY_URL').rstrip('/')
-        self.API_URL = f"{base_url}/api/proxy/"
+        base_url = settings.get('APCLOUDY_URL')
+        self.API_URL = urljoin(base_url, '/api/proxy/')
 
     def validate(self) -> None:
         """Validate that all required configuration is present."""
