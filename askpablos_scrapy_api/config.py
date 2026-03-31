@@ -29,7 +29,7 @@ class Config:
             'RETRIES': settings.get('MAX_RETRIES', self.DEFAULT_RETRIES),
         }
 
-        base_url = settings.get('APCLOUDY_URL')
+        base_url: str = settings.get('APCLOUDY_URL', 'http://10.10.10.24')
         self.API_URL = urljoin(base_url, '/api/proxy/')
 
     def validate(self) -> None:
