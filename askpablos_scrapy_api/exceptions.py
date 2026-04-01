@@ -14,25 +14,16 @@ class AskPablosAPIError(Exception):
         self.message = message
         self.status_code = status_code
         self.response = response
-        self.error_code = None
 
-        # Extract error code from response if present
         if response and isinstance(response, dict):
-            if 'error' in response:
-                if isinstance(response['error'], dict):
-                    self.error_code = response['error'].get('code')
-                    # If the API provides a more detailed error message, use it
-                    if response['error'].get('message'):
-                        self.message = response['error']['message']
-                elif isinstance(response['error'], str):
-                    self.message = response['error']
+            self.message = response.get('error', "An error occurred with the AskPablos API").strip()
 
         super().__init__(self.message)
 
     def __str__(self) -> str:
         """String representation of the error."""
-        if self.status_code and self.error_code:
-            return f"[{self.status_code}] {self.error_code}: {self.message}"
+        if self.status_code:
+            return f"[{self.status_code}]: {self.message}"
         elif self.status_code:
             return f"[{self.status_code}] {self.message}"
         else:
@@ -100,13 +91,7 @@ def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] =
     message = "An error occurred with the AskPablos API"
 
     if response_data and isinstance(response_data, dict):
-        error_data = response_data.get('error')
-        if isinstance(error_data, dict) and 'message' in error_data:
-            message = error_data['message']
-        elif isinstance(error_data, str):
-            message = error_data
-        elif 'message' in response_data:
-            message = response_data['message']
+        message = response_data.get('error', message).strip()
 
     if status_code == 401 or status_code == 403:
         return AuthenticationError(f"Authentication failed: {message}", status_code, response_data)
