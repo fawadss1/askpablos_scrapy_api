@@ -58,6 +58,52 @@ def validate_screenshot(config: Dict[str, Any], validated_config: Dict[str, Any]
             )
 
 
+def validate_geo_location(config: Dict[str, Any], validated_config: Dict[str, Any]) -> None:
+    """
+    Validate geoLocation configuration.
+
+    Args:
+        config: Raw configuration dictionary
+        validated_config: Dictionary to store validated config
+
+    Raises:
+        ValueError: If geoLocation value is invalid
+    """
+    if 'geoLocation' in config:
+        geo = config['geoLocation']
+        if not isinstance(geo, str):
+            raise ValueError("'geoLocation' must be a string")
+        geo = geo.strip().lower()
+        if len(geo) != 2 or not geo.isalpha():
+            raise ValueError(
+                f"'geoLocation' must be a 2-letter ISO country code (e.g. 'US', 'PK', 'GB'), got '{config['geoLocation']}'"
+            )
+        validated_config['geoLocation'] = geo
+
+
+def validate_proxy_type(config: Dict[str, Any], validated_config: Dict[str, Any]) -> None:
+    """
+    Validate proxyType configuration.
+
+    Args:
+        config: Raw configuration dictionary
+        validated_config: Dictionary to store validated config
+
+    Raises:
+        ValueError: If proxyType value is invalid
+    """
+    if 'proxyType' in config:
+        proxy_type = config['proxyType']
+        valid_proxy_types = ['datacenter', 'residential', 'mobile']
+        if not isinstance(proxy_type, str):
+            raise ValueError("'proxyType' must be a string")
+        if proxy_type not in valid_proxy_types:
+            raise ValueError(
+                f"'proxyType' must be one of {valid_proxy_types}, got '{proxy_type}'"
+            )
+        validated_config['proxyType'] = proxy_type
+
+
 def validate_operations(config: Dict[str, Any], validated_config: Dict[str, Any], browser_enabled: bool) -> None:
     """
     Validate operations configuration.
