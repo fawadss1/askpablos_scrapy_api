@@ -61,9 +61,11 @@ Configure individual requests using the `askpablos_api_map` in request meta:
 ```python
 meta = {
     "askpablos_api_map": {
-        "browser": True,          # Use headless browser
-        "screenshot": True,       # Take screenshot (requires browser: True)
-        "operations": [...]       # Browser operations for SPA interaction (requires browser: True)
+        "browser": True,              # Use headless browser
+        "screenshot": True,           # Take screenshot (requires browser: True)
+        "operations": [...],          # Browser operations for SPA interaction (requires browser: True)
+        "geoLocation": "US",          # Target country (2-letter ISO code, e.g. "PK", "US", "GB")
+        "proxyType": "residential"    # Proxy type: "datacenter", "residential", or "mobile"
     }
 }
 ```
@@ -143,6 +145,61 @@ class MySpider(scrapy.Spider):
 ---
 
 ## Advanced Usage
+
+### Geo-Targeted Requests
+
+Route requests through a proxy in a specific country using the `geoLocation` option:
+
+```python
+def start_requests(self):
+    yield scrapy.Request(
+        url='https://example.com',
+        meta={
+            "askpablos_api_map": {
+                "geoLocation": "US"   # 2-letter ISO country code
+            }
+        },
+        callback=self.parse
+    )
+```
+
+Supported values are standard ISO 3166-1 alpha-2 country codes such as `"US"`, `"PK"`, `"GB"`, `"DE"`, `"FR"`, etc. The value is case-insensitive and will be normalized to uppercase internally.
+
+### Choosing Proxy Type
+
+Control the type of proxy used with the `proxyType` option:
+
+```python
+def start_requests(self):
+    yield scrapy.Request(
+        url='https://example.com',
+        meta={
+            "askpablos_api_map": {
+                "proxyType": "residential"   # "datacenter", "residential", or "mobile"
+            }
+        },
+        callback=self.parse
+    )
+```
+
+| Value | Description |
+|---|---|
+| `"datacenter"` | Fast, cost-efficient proxies hosted in data centers |
+| `"residential"` | IPs assigned by ISPs to real home users — high trust, harder to detect |
+| `"mobile"` | IPs from mobile carriers — highest trust for mobile-targeted sites |
+
+Both options can be combined freely with `browser`, `screenshot`, `operations`, etc.:
+
+```python
+meta = {
+    "askpablos_api_map": {
+        "browser": True,
+        "screenshot": True,
+        "geoLocation": "GB",
+        "proxyType": "mobile"
+    }
+}
+```
 
 ### Screenshot Capture
 
@@ -273,11 +330,13 @@ meta = {
 
 ### Meta Configuration Options
 
-| Option          | Type     | Description                                            |
-|-----------------|----------|--------------------------------------------------------|
-| `browser`       | bool     | Use headless browser rendering                         |
-| `screenshot`    | bool     | Take screenshot of the page (requires browser: True)   |
-| `operations`    | list     | Browser operations for SPA interaction (requires browser: True) |
+| Option          | Type     | Required | Description                                                         |
+|-----------------|----------|----------|---------------------------------------------------------------------|
+| `browser`       | bool     | No       | Use headless browser rendering                                      |
+| `screenshot`    | bool     | No       | Take screenshot of the page (requires `browser: True`)              |
+| `operations`    | list     | No       | Browser operations for SPA interaction (requires `browser: True`)   |
+| `geoLocation`   | str      | No       | 2-letter ISO country code for geo-targeting (e.g. `"US"`, `"PK"`)  |
+| `proxyType`     | str      | No       | Proxy type: `"datacenter"`, `"residential"`, or `"mobile"`          |
 
 **Important Note:** The options `screenshot` and `operations` only work when `browser: True` is set. If browser rendering is disabled, these options will be ignored.
 

@@ -13,9 +13,11 @@ The middleware accepts the following configuration in request meta:
 ```python
 meta = {
     "askpablos_api_map": {
-        "browser": True,          # Optional: Use headless browser
-        "screenshot": True,       # Optional: Take screenshot (requires browser: True)
-        "operations": [...]       # Optional: Browser operations for SPA interaction (requires browser: True)
+        "browser": True,              # Optional: Use headless browser
+        "screenshot": True,           # Optional: Take screenshot (requires browser: True)
+        "operations": [...],          # Optional: Browser operations for SPA interaction (requires browser: True)
+        "geoLocation": "US",          # Optional: 2-letter ISO country code (e.g. "PK", "US", "GB")
+        "proxyType": "residential"    # Optional: "datacenter", "residential", or "mobile"
     }
 }
 ```
@@ -84,6 +86,21 @@ The `operations` parameter allows you to define advanced browser interactions fo
 **Optional Parameters:**
 - `maxWait`: Maximum time to wait in seconds (must be > 0)
 - `onFailure`: Action on failure - `"continue"` (ignore and continue), `"return"` (stop and return), or `"throw"` (raise error)
+
+### Geo-Location and Proxy Type
+
+Two additional optional parameters control how the proxy is selected:
+
+**`geoLocation`** — Route the request through a proxy in a specific country.
+- Value: 2-letter ISO 3166-1 alpha-2 country code (e.g. `"US"`, `"PK"`, `"GB"`)
+- Case-insensitive; normalized to uppercase internally
+
+**`proxyType`** — Choose the category of proxy to use.
+- `"datacenter"` — Fast, cost-efficient data center proxies
+- `"residential"` — Real ISP-assigned IPs; higher trust and lower detection rate
+- `"mobile"` — Mobile carrier IPs; highest trust for mobile-targeted sites
+
+Both options are independent of each other and of `browser`/`screenshot`/`operations`.
 
 ```{eval-rst}
 .. automodule:: askpablos_scrapy_api.operations
