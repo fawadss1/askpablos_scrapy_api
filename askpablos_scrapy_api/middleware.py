@@ -55,9 +55,11 @@ class AskPablosAPIDownloaderMiddleware:
     This middleware activates **only** for requests that include:
         meta = {
             "askpablos_api_map": {
-                "browser": True,          # Optional: Use headless browser
-                "screenshot": True,       # Optional: Take screenshot (requires browser: True)
-                "operations": [...]       # Optional: Browser operations (auto-enables browser: True)
+                "browser": True,                # Optional: Use headless browser
+                "screenshot": True,             # Optional: Take screenshot (requires browser: True)
+                "operations": [...],            # Optional: Browser operations (requires browser: True)
+                "geoLocation": "PK",            # Optional: Target country (2-letter ISO code, e.g. "PK", "US", "GB")
+                "proxyType": "residential",     # Optional: Proxy_Ip_type ("datacenter", "residential", or "mobile")
             }
         }
 
