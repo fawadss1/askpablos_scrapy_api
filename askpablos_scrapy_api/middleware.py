@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Optional
 
+from scrapy import signals
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 from scrapy.exceptions import IgnoreRequest
@@ -15,7 +16,7 @@ from .exceptions import (
     RateLimitError,
     AuthenticationError,
 )
-from .http import async_post_request, handle_api_response
+from .http import AskPablosHTTPClient, handle_api_response
 
 logger = logging.getLogger('askpablos_scrapy_api')
 
@@ -24,18 +25,20 @@ class AskPablosAPIDownloaderMiddleware:
     """
     Scrapy middleware to route selected requests through AskPablos proxy API.
 
+    Requests are forwarded to the API in parallel: every proxied request
+    immediately fires an async HTTP POST through a shared aiohttp session
+    without waiting for any other in-flight request to complete first.
+
     This middleware activates **only** for requests that include:
         meta = {
             "askpablos_api_map": {
                 "browser": True,                # Optional: Use headless browser
                 "screenshot": True,             # Optional: Take screenshot (requires browser: True)
                 "operations": [...],            # Optional: Browser operations (requires browser: True)
-                "geoLocation": "PK",            # Optional: Target country (2-letter ISO code, e.g. "PK", "US", "GB")
-                "proxyType": "residential",     # Optional: Proxy_Ip_type ("datacenter", "residential", or "mobile")
+                "geoLocation": "PK",            # Optional: Target country (2-letter ISO code)
+                "proxyType": "residential",     # Optional: "datacenter", "residential", or "mobile"
             }
         }
-
-    It will bypass any request that does not include the `askpablos_api_map` key or has it as an empty dict.
 
     Configuration (via settings.py or `custom_settings` in your spider):
         API_KEY = "<your API key>"
@@ -47,10 +50,11 @@ class AskPablosAPIDownloaderMiddleware:
         self.secret_key = secret_key
         self.config = config
         self._spider_closing = False
+        self._http_client = AskPablosHTTPClient()
 
     @classmethod
     def from_crawler(cls, crawler):
-        """Create a middleware instance from Scrapy crawler."""
+        """Create a middleware instance and connect spider lifecycle signals."""
         config = Config()
         config.load_from_settings(crawler.settings)
 
@@ -61,26 +65,39 @@ class AskPablosAPIDownloaderMiddleware:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        return cls(
+        mw = cls(
             api_key=config.get('API_KEY'),
             secret_key=config.get('SECRET_KEY'),
-            config=config
+            config=config,
         )
 
+        # Open the shared HTTP session when the spider starts, close it when done.
+        # The session is shared across all concurrent requests so they run in parallel.
+        crawler.signals.connect(mw._spider_opened, signal=signals.spider_opened)
+        crawler.signals.connect(mw._spider_closed, signal=signals.spider_closed)
+
+        return mw
+
+    def _spider_opened(self, spider):
+        return deferred_from_coro(self._http_client.open())
+
+    def _spider_closed(self, spider):
+        return deferred_from_coro(self._http_client.close())
+
     def process_request(self, request: Request, spider: Spider):
-        """Process a Scrapy request using an async/await pattern."""
+        """Fire an async request immediately — does not wait for other in-flight requests."""
         if self._spider_closing:
             raise IgnoreRequest()
 
         proxy_cfg = request.meta.get("askpablos_api_map")
-
-        if not proxy_cfg or not isinstance(proxy_cfg, dict) or not proxy_cfg:
+        if not proxy_cfg or not isinstance(proxy_cfg, dict):
             return None
 
+        # Each call returns its own Deferred; Scrapy resolves them concurrently.
         return deferred_from_coro(self._async_process_request(request, spider))
 
     async def _async_process_request(self, request: Request, spider: Spider) -> Optional[HtmlResponse]:
-        """Async implementation of request processing."""
+        """Build and fire the API request; runs in parallel with all other in-flight requests."""
         try:
             proxy_cfg = request.meta.get("askpablos_api_map", {})
             validated_config = AskPablosAPIMapValidator.validate_config(proxy_cfg)
@@ -88,7 +105,7 @@ class AskPablosAPIDownloaderMiddleware:
             payload = create_api_payload(
                 request_url=request.url,
                 request_method=request.method if hasattr(request, "method") else "GET",
-                config=validated_config
+                config=validated_config,
             )
 
             if 'timeout' not in payload:
@@ -108,14 +125,14 @@ class AskPablosAPIDownloaderMiddleware:
 
             logger.debug(f"AskPablos API: Sending request for URL: {request.url}")
 
-            api_response = await async_post_request(
+            api_response = await self._http_client.post(
                 url=self.config.API_URL,
                 data=request_json,
                 headers=headers,
-                timeout=payload.get('timeout', 30)
+                timeout=payload.get('timeout', 30),
             )
 
-            return handle_api_response(api_response, request, spider, validated_config)
+            return handle_api_response(api_response, request, spider)
 
         except ValueError as e:
             spider.crawler.stats.inc_value("askpablos/errors/config_validation")
@@ -130,7 +147,7 @@ class AskPablosAPIDownloaderMiddleware:
             spider.crawler.stats.inc_value("askpablos/errors/connection")
             raise ConnectionError(f"AskPablos API connection error for URL: {request.url} - {str(e)}") from None
 
-        except (AuthenticationError, RateLimitError) as e:
+        except (AuthenticationError, RateLimitError):
             if not self._spider_closing:
                 self._spider_closing = True
                 spider.crawler.stats.inc_value("askpablos/errors/critical")
