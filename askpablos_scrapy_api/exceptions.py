@@ -70,13 +70,6 @@ class RateLimitError(AskPablosAPIError):
         return base_str
 
 
-class BrowserRenderingError(AskPablosAPIError):
-    """
-    Raised when there's an error with headless browser rendering.
-    """
-    pass
-
-
 def handle_api_error(status_code: int, response_data: Optional[Dict[str, Any]] = None) -> AskPablosAPIError:
     """
     Factory function to create and return the appropriate exception based on status code.

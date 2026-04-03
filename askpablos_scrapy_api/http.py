@@ -8,7 +8,6 @@ from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 
 from .exceptions import (
-    BrowserRenderingError,
     handle_api_error,
 )
 
@@ -37,35 +36,24 @@ async def async_post_request(url: str, data: str, headers: dict, timeout: int):
         raise TimeoutError(f"AskPablos API request timed out") from None
 
 
-def handle_api_response(api_response: dict, request: Request, spider: Spider, validated_config: dict):
+def handle_api_response(api_response: dict, request: Request, spider: Spider):
     """
     Process an API response and return a Scrapy HtmlResponse.
 
     Raises the appropriate exception on HTTP errors or invalid response content.
     """
     status_code = api_response['status_code']
-    response_data = api_response['data']
+    proxy_response = api_response['data']
 
     if status_code != 200:
-        error = handle_api_error(status_code, response_data)
+        error = handle_api_error(status_code, proxy_response)
         spider.crawler.stats.inc_value(f"askpablos/errors/{error.__class__.__name__}")
         raise error
-
-    try:
-        proxy_response = response_data
-    except (ValueError, json.JSONDecodeError):
-        spider.crawler.stats.inc_value("askpablos/errors/json_decode")
-        raise json.JSONDecodeError(f"AskPablos API returned invalid JSON response for {request.url}", "", 0)
 
     html_body = proxy_response.get("responseBody", "")
     if not html_body:
         spider.crawler.stats.inc_value("askpablos/errors/empty_response")
-        raise ValueError(f"AskPablos API response missing required 'responseBody' field")
-
-    if validated_config.get("browser") and proxy_response.get("error"):
-        error_msg = proxy_response.get("error", "Unknown browser rendering error")
-        spider.crawler.stats.inc_value("askpablos/errors/browser_rendering")
-        raise BrowserRenderingError(error_msg, response=proxy_response)
+        raise ValueError("AskPablos API response missing required 'responseBody' field")
 
     body = b64decode(html_body).decode()
 

@@ -14,7 +14,6 @@ from .exceptions import (
     AskPablosAPIError,
     RateLimitError,
     AuthenticationError,
-    BrowserRenderingError,
 )
 from .http import async_post_request, handle_api_response
 
@@ -139,7 +138,7 @@ class AskPablosAPIDownloaderMiddleware:
             else:
                 raise IgnoreRequest() from None
 
-        except (AskPablosAPIError, BrowserRenderingError):
+        except AskPablosAPIError:
             raise
 
         except Exception as e:

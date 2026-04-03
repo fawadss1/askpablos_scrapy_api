@@ -20,7 +20,6 @@ from .middleware import AskPablosAPIDownloaderMiddleware
 from .exceptions import (
     AskPablosAPIError,
     RateLimitError,
-    BrowserRenderingError,
     handle_api_error,
 )
 
@@ -32,6 +31,5 @@ __all__ = [
     '__version__',
     'AskPablosAPIError',
     'RateLimitError',
-    'BrowserRenderingError',
     'handle_api_error'
 ]
