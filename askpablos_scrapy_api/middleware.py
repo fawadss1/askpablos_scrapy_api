@@ -79,7 +79,7 @@ class AskPablosAPIDownloaderMiddleware:
         return mw
 
     def _spider_opened(self, spider):
-        return deferred_from_coro(self._http_client.open())
+        self._http_client.open()
 
     def _spider_closed(self, spider):
         return deferred_from_coro(self._http_client.close())

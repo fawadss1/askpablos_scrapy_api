@@ -1,76 +1,122 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from base64 import b64decode
 
-import aiohttp
+from twisted.internet.defer import succeed
+from twisted.web.client import Agent, readBody, HTTPConnectionPool
+from twisted.web.http_headers import Headers
+from twisted.web.iweb import IBodyProducer
+from zope.interface import implementer
+
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
 
-from .exceptions import (
-    handle_api_error,
-)
+from .exceptions import handle_api_error
 
 logger = logging.getLogger('askpablos_scrapy_api')
 
 
+@implementer(IBodyProducer)
+class _BytesProducer:
+    """Minimal Twisted IBodyProducer that writes a fixed bytes payload."""
+
+    def __init__(self, body: bytes):
+        self.body = body
+        self.length = len(body)
+
+    def startProducing(self, consumer):
+        consumer.write(self.body)
+        return succeed(None)
+
+    def stopProducing(self):
+        pass
+
+    def pauseProducing(self):
+        pass
+
+    def resumeProducing(self):
+        pass
+
+
 class AskPablosHTTPClient:
     """
-    Persistent HTTP client backed by a single shared aiohttp.ClientSession.
+    Persistent HTTP client backed by Twisted's Agent + HTTPConnectionPool.
 
-    A new TCP connection is opened for each concurrent request up to the
-    connector limit, then reused via the pool — so every in-flight request
-    runs in parallel without waiting for the previous one to finish.
+    Using Twisted's native HTTP stack (not aiohttp) because Scrapy drives
+    coroutines via _inlineCallbacks which never calls asyncio._set_running_loop(),
+    so any aiohttp code that calls asyncio.get_running_loop() (timeouts, connector
+    setup) raises RuntimeError: no running event loop.
 
     Lifecycle (tied to the Scrapy spider):
-        await client.open()   # spider_opened signal
+        client.open()         # spider_opened signal (synchronous)
         await client.post(…)  # called for every proxied request
         await client.close()  # spider_closed signal
     """
 
     def __init__(self):
-        self._session: aiohttp.ClientSession | None = None
+        self._agent: Agent | None = None
+        self._pool: HTTPConnectionPool | None = None
 
-    async def open(self):
-        """Create the shared session. Must be called before any post()."""
-        # limit=0 disables the per-host cap; Scrapy's CONCURRENT_REQUESTS
-        # setting already governs how many requests are in flight at once.
-        connector = aiohttp.TCPConnector(limit=0)
-        self._session = aiohttp.ClientSession(connector=connector)
-        logger.debug("AskPablos HTTP client session opened")
+    def open(self):
+        """Create the connection pool and agent. Synchronous — safe to call from signal handlers."""
+        from twisted.internet import reactor
+        self._pool = HTTPConnectionPool(reactor)
+        self._agent = Agent(reactor, pool=self._pool)
+        logger.debug("AskPablos HTTP client opened")
 
     async def close(self):
-        """Close the shared session and release all connections."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
-            logger.debug("AskPablos HTTP client session closed")
+        """Drain and close all pooled connections."""
+        if self._pool:
+            await self._pool.closeCachedConnections()
+            self._pool = None
+            self._agent = None
+            logger.debug("AskPablos HTTP client closed")
 
     async def post(self, url: str, data: str, headers: dict, timeout: int) -> dict:
         """
-        POST to the AskPablos backend using the shared session.
+        POST to the AskPablos backend.
 
-        All concurrent callers share the same session and connection pool,
-        so their network I/O overlaps — no request blocks another.
+        All concurrent callers share the same connection pool so their network
+        I/O overlaps — no request blocks another. Timeout is handled by Scrapy's
+        DOWNLOAD_TIMEOUT at the Deferred level.
         """
-        if self._session is None or self._session.closed:
-            raise RuntimeError("AskPablosHTTPClient is not open. Call open() first.")
+        if self._agent is None:
+            self.open()
+
+        request_headers = Headers()
+        for key, value in headers.items():
+            request_headers.addRawHeader(
+                key.encode() if isinstance(key, str) else key,
+                value.encode() if isinstance(value, str) else value,
+            )
+
+        body = data.encode() if isinstance(data, str) else data
 
         try:
-            timeout_obj = aiohttp.ClientTimeout(total=timeout)
-            async with self._session.post(url, data=data, headers=headers, timeout=timeout_obj) as response:
-                response_data = await response.json()
-                return {
-                    'status_code': response.status,
-                    'data': response_data,
-                    'headers': dict(response.headers),
-                }
-        except aiohttp.ClientError as e:
-            raise ConnectionError(f"AskPablos API connection error: {str(e)}") from None
-        except asyncio.TimeoutError:
-            raise TimeoutError("AskPablos API request timed out") from None
+            response = await self._agent.request(
+                b'POST',
+                url.encode() if isinstance(url, str) else url,
+                request_headers,
+                _BytesProducer(body),
+            )
+            response_body = await readBody(response)
+            response_data = json.loads(response_body)
+
+            return {
+                'status_code': response.code,
+                'data': response_data,
+                'headers': {
+                    k.decode(): v[0].decode()
+                    for k, v in response.headers.getAllRawHeaders()
+                },
+            }
+        except Exception as e:
+            msg = str(e)
+            if any(w in msg.lower() for w in ('timeout', 'timed out')):
+                raise TimeoutError("AskPablos API request timed out") from None
+            raise ConnectionError(f"AskPablos API connection error: {msg}") from None
 
 
 def handle_api_response(api_response: dict, request: Request, spider: Spider):
