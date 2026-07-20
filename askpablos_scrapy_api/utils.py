@@ -104,6 +104,29 @@ def validate_proxy_type(config: Dict[str, Any], validated_config: Dict[str, Any]
         validated_config['proxyType'] = proxy_type
 
 
+def validate_headers(config: Dict[str, Any], validated_config: Dict[str, Any]) -> None:
+    """
+    Validate headers configuration.
+
+    Args:
+        config: Raw configuration dictionary
+        validated_config: Dictionary to store validated config
+
+    Raises:
+        ValueError: If headers value is invalid
+    """
+    if 'headers' in config:
+        headers = config['headers']
+        if not isinstance(headers, dict):
+            raise ValueError("'headers' must be a dictionary")
+
+        for key, value in headers.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                raise ValueError("'headers' keys and values must be strings")
+
+        validated_config['headers'] = headers
+
+
 def validate_operations(config: Dict[str, Any], validated_config: Dict[str, Any], browser_enabled: bool) -> None:
     """
     Validate operations configuration.

@@ -64,6 +64,23 @@ def test_proxy_type_invalid(bad):
     with pytest.raises(ValueError): validate({"proxyType": bad})
 
 
+# --- headers ---
+def test_headers_valid():
+    headers = {"X-Custom": "value", "Authorization": "Bearer token"}
+    assert validate({"headers": headers})["headers"] == headers
+    assert "headers" not in validate({})
+
+
+@pytest.mark.parametrize("bad", ["not-a-dict", 123, ["a", "b"]])
+def test_headers_invalid_type(bad):
+    with pytest.raises(ValueError, match="'headers' must be a dictionary"): validate({"headers": bad})
+
+
+@pytest.mark.parametrize("bad", [{1: "value"}, {"X-Custom": 123}, {"X-Custom": None}])
+def test_headers_invalid_entries(bad):
+    with pytest.raises(ValueError, match="'headers' keys and values must be strings"): validate({"headers": bad})
+
+
 # --- operations ---
 def test_operations_valid():
     ops = [op()]
@@ -125,6 +142,19 @@ def test_payload_optional_fields():
     assert p["geoLocation"] == "us" and p["proxyType"] == "residential" and p["screenshot"] is True
 
 
+def test_payload_headers_field():
+    headers = {"X-Custom": "value"}
+    cfg = validate({"headers": headers})
+    p = create_api_payload("https://example.com", "GET", cfg)
+    assert p["headers"] == headers
+
+
+def test_payload_headers_absent_when_not_configured():
+    cfg = validate({"browser": True})
+    p = create_api_payload("https://example.com", "GET", cfg)
+    assert "headers" not in p
+
+
 def test_payload_browser_defaults_false():
     assert create_api_payload("https://example.com", "GET", {})["browser"] is False
 
@@ -162,6 +192,90 @@ def test_sign_request_sorted_keys():
 def test_create_auth_headers():
     h = create_auth_headers("key", "sig==")
     assert h == {"Content-Type": "application/json", "X-API-Key": "key", "X-Signature": "sig=="}
+
+
+# --- middleware ---
+def _mw(**settings):
+    from askpablos_scrapy_api.middleware import AskPablosAPIDownloaderMiddleware
+
+    default_headers = AskPablosAPIDownloaderMiddleware._build_default_headers(_settings(**settings))
+    return AskPablosAPIDownloaderMiddleware(
+        api_key="key", secret_key="secret", config=Config(), default_headers=default_headers
+    )
+
+
+def _settings(**overrides):
+    from scrapy.settings import Settings
+
+    values = {
+        "DEFAULT_REQUEST_HEADERS": {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en",
+        },
+        "USER_AGENT": "Scrapy/2.15.2 (+https://scrapy.org)",
+    }
+    values.update(overrides)
+    return Settings(values)
+
+
+def test_extract_request_headers():
+    from scrapy.http import Request
+
+    request = Request("https://example.com", headers={"X-Custom": "value", "Content-Type": "application/json"})
+    extracted = _mw()._extract_request_headers(request)
+    assert extracted["X-Custom"] == "value"
+    assert extracted["Content-Type"] == "application/json"
+
+
+def test_extract_request_headers_empty():
+    from scrapy.http import Request
+
+    request = Request("https://example.com")
+    extracted = _mw()._extract_request_headers(request)
+    assert isinstance(extracted, dict)
+
+
+def test_extract_request_headers_excludes_scrapy_defaults():
+    from scrapy.http import Request
+
+    request = Request(
+        "https://example.com",
+        headers={
+            "khan": "khan",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en",
+            "Accept-Encoding": "gzip, deflate",
+            "User-Agent": "Scrapy/2.15.2 (+https://scrapy.org)",
+            "Cookie": "sessionid=abc",
+            "Referer": "https://example.com",
+            "Connection": "keep-alive",
+        },
+    )
+    extracted = _mw()._extract_request_headers(request)
+    assert extracted == {
+        "Khan": "khan",
+        "Accept-Encoding": "gzip, deflate",
+        "Cookie": "sessionid=abc",
+        "Referer": "https://example.com",
+        "Connection": "keep-alive",
+    }
+
+
+def test_extract_request_headers_forwards_user_overridden_defaults():
+    from scrapy.http import Request
+
+    request = Request(
+        "https://example.com",
+        headers={
+            "Accept-Language": "fr",
+            "User-Agent": "MyCustomBot/1.0",
+        },
+    )
+    extracted = _mw()._extract_request_headers(request)
+    assert extracted == {
+        "Accept-Language": "fr",
+        "User-Agent": "MyCustomBot/1.0",
+    }
 
 
 # --- config ---

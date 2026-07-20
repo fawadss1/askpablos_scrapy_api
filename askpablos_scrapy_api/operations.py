@@ -13,6 +13,7 @@ from .utils import (
     validate_operations,
     validate_geo_location,
     validate_proxy_type,
+    validate_headers,
 )
 
 logger = logging.getLogger('askpablos_scrapy_api')
@@ -48,6 +49,7 @@ class AskPablosAPIMapValidator:
         validate_operations(config, validated_config, browser_enabled)
         validate_geo_location(config, validated_config)
         validate_proxy_type(config, validated_config)
+        validate_headers(config, validated_config)
 
         return validated_config
 
@@ -72,7 +74,7 @@ def create_api_payload(request_url: str, request_method: str, config: Dict[str, 
 
     # Add optional fields if present
     optional_fields = [
-        'screenshot', 'operations', 'geoLocation', 'proxyType'
+        'screenshot', 'operations', 'geoLocation', 'proxyType', 'headers'
     ]
 
     for field in optional_fields:
