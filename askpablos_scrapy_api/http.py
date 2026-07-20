@@ -12,10 +12,27 @@ from zope.interface import implementer
 
 from scrapy.http import HtmlResponse, Request
 from scrapy import Spider
+from scrapy.utils.asyncio import is_asyncio_available
+from scrapy.utils.defer import deferred_to_future
 
 from .exceptions import handle_api_error
 
 logger = logging.getLogger('askpablos_scrapy_api')
+
+
+async def _await_deferred(deferred):
+    """
+    Await a Twisted Deferred from within a native coroutine.
+
+    When Scrapy runs with the asyncio reactor, native coroutines cannot
+    directly `await` a `Deferred` (only `Future` objects are supported —
+    otherwise asyncio raises "Task got bad yield"). Wrap it into a Future
+    with `deferred_to_future` in that case. Without the asyncio reactor,
+    Deferreds can be awaited directly.
+    """
+    if is_asyncio_available():
+        return await deferred_to_future(deferred)
+    return await deferred
 
 
 @implementer(IBodyProducer)
@@ -69,7 +86,7 @@ class AskPablosHTTPClient:
     async def close(self):
         """Drain and close all pooled connections."""
         if self._pool:
-            await self._pool.closeCachedConnections()
+            await _await_deferred(self._pool.closeCachedConnections())
             self._pool = None
             self._agent = None
             logger.debug("AskPablos HTTP client closed")
@@ -95,13 +112,13 @@ class AskPablosHTTPClient:
         body = data.encode() if isinstance(data, str) else data
 
         try:
-            response = await self._agent.request(
+            response = await _await_deferred(self._agent.request(
                 b'POST',
                 url.encode() if isinstance(url, str) else url,
                 request_headers,
                 _BytesProducer(body),
-            )
-            response_body = await readBody(response)
+            ))
+            response_body = await _await_deferred(readBody(response))
             response_data = json.loads(response_body)
 
             return {
